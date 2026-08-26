@@ -20,10 +20,13 @@ import { $, $$, el, clamp, norm, easeOut } from '../../shared/js/util.js';
    설정 로드
    -------------------------------------------------------------------------- */
 
-let CONFIG;
+// 단일 파일 배포본(tools/build_standalone.py)에서는 설정이 인라인으로 주입된다.
+let CONFIG = window.__GV90_CONFIG__ || null;
 try {
-  const res = await fetch('config.json', { cache: 'no-cache' });
-  CONFIG = await res.json();
+  if (!CONFIG) {
+    const res = await fetch('config.json', { cache: 'no-cache' });
+    CONFIG = await res.json();
+  }
 } catch (err) {
   document.body.innerHTML =
     '<div style="display:grid;place-items:center;height:100%;font-size:22px;' +
@@ -65,12 +68,12 @@ const segEls = CONFIG.chrome.segments.map((seg) => {
 const clearItemsEl = $('#clear-items');
 
 // FILL — B&O 기능 카드
-$('#fill-features').append(...COPY.fill.features.map((f, i) =>
+$('#fill-features').append(...COPY.fill.features.map((f) =>
   el('article', { class: 'feature-card' },
     el('p', { class: 'tag', text: f.tag }),
     el('h3', { text: f.title }),
     el('p', { text: f.body }),
-    el('img', { src: `assets/img/feature-${i + 1}.jpg`, alt: '' }))));
+    el('img', { src: f.image, alt: '' }))));
 
 // EXPAND — 축 설명
 const axisEls = COPY.expand.axes.map((a) => {
@@ -89,6 +92,7 @@ appImg.addEventListener('error', () => {
   chips.hidden = false;
   chips.append(...COPY.expand.apps.items.map((t) => el('li', { text: t })));
 });
+appImg.src = COPY.expand.apps.image;
 
 /* --------------------------------------------------------------------------
    스테이지 · 비주얼 · 오디오

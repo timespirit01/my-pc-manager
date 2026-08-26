@@ -32,6 +32,14 @@ Windows :  launch\run-windows.bat
 Linux   :  ./launch/run-linux.sh sound-experience 8080
 ```
 
+**단일 파일 배포본** — 서버 없이 브라우저로 열기만 하면 되는 한 개짜리 HTML.
+클라이언트 검수용 공유나, 네트워크가 막힌 전시장 PC 반입에 쓴다.
+
+```bash
+python3 tools/build_standalone.py sound-experience
+# → dist/gv90-sound-experience.html  (약 1 MB, 이미지·설정·스크립트 모두 포함)
+```
+
 ---
 
 ## 운영자 단축키
@@ -78,7 +86,8 @@ gv90/
 │  └─ assets/{img,audio}
 ├─ tools/
 │  ├─ serve.py             정적 서버
-│  └─ extract_assets.py    제안서 PDF → 이미지 플레이트 추출
+│  ├─ extract_assets.py    제안서 PDF → 이미지 플레이트 추출
+│  └─ build_standalone.py  단일 HTML 배포본 빌드
 ├─ launch/                 전시장 PC 실행 스크립트
 └─ docs/                   제안서 원본
 ```
@@ -162,6 +171,9 @@ python3 tools/extract_assets.py
 | `interior.jpg` | EXPAND 실내 | 3840×2160, 카피 없는 원본 |
 | `feature-1~3.jpg` | B&O 기능 컷 | 1032×400 (@2x) |
 | `apps.png` | 애트모스 지원 앱 아이콘 | 1680×200 (@2x), 투명 배경 |
+
+`feature-*.jpg` 와 `apps.png` 의 경로는 `config.json` 의 `copy.fill.features[].image`,
+`copy.expand.apps.image` 에 있다. 파일명을 바꾸려면 그쪽을 고친다.
 
 ### 폰트
 

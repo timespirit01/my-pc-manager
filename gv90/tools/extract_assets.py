@@ -51,6 +51,7 @@ MASKS = {
 FEATHER = {
     "car-side.png": 46,
     "car-top.png": 26,
+    "apps.png": 24,
 }
 
 RENDER_DPI = 200
