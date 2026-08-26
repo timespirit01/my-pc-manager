@@ -1,0 +1,17 @@
+{
+  "name": "gv90-bridge",
+  "version": "1.0.0",
+  "description": "GV90 전시 콘텐츠 공간 제어 브릿지 — 조명(DMX) · 커튼(RS-485)",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.js",
+    "test:ports": "node test.js --ports",
+    "test:frames": "node test.js --frames"
+  },
+  "dependencies": {
+    "serialport": "^12.0.0",
+    "ws": "^8.18.0"
+  }
+}

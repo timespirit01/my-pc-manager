@@ -7,7 +7,7 @@
 |---|---|---|
 | **SOUND EXPERIENCE** — 여백의 소리 / SEE THE SOUND | `sound-experience/` | ✅ 구현 완료 |
 | **SWIVEL** — 4가지 상황별 시나리오 (듀얼 모니터) | `swivel/` | ✅ 구현 완료 |
-| **SIESTA** — GEN-UX 네 개의 루틴 | `siesta/` | ⏳ 예정 |
+| **SIESTA** — GEN-UX 네 개의 루틴 (조명·커튼·사운드 제어) | `siesta/` | ✅ 구현 완료 |
 
 세 콘텐츠 모두 같은 키오스크 셸(`shared/`)을 쓴다.
 1920×1080 고정 좌표계로 만들고 실행 시 모니터 해상도에 맞춰 통째로 스케일하므로,
@@ -21,7 +21,11 @@
 python3 tools/serve.py
 # → http://localhost:8080/sound-experience/
 # → http://localhost:8080/swivel/          (두 화면을 나란히 — 검수용)
+# → http://localhost:8080/siesta/
 ```
+
+SIESTA 는 조명·커튼을 실제로 움직이므로 `bridge/` 서비스를 함께 띄운다.
+브릿지가 없어도 화면은 그대로 동작하고 명령은 기록만 된다 → [bridge/README.md](bridge/README.md)
 
 브라우저 보안 정책 때문에 `index.html` 을 파일로 직접 열면 동작하지 않는다.
 반드시 위 서버로 띄운다.
@@ -36,6 +40,10 @@ SOUND EXPERIENCE
 SWIVEL (듀얼 모니터 — 창 두 개를 각 모니터에 띄운다)
   Windows :  launch\run-swivel-windows.bat
   Linux   :  ./launch/run-swivel-linux.sh 8080 1920
+
+SIESTA (공간 제어 브릿지를 함께 띄운다)
+  Windows :  launch\run-siesta-windows.bat
+  Linux   :  ./launch/run-siesta-linux.sh 8080
 ```
 
 **단일 파일 배포본** — 서버 없이 브라우저로 열기만 하면 되는 한 개짜리 HTML.
@@ -44,9 +52,11 @@ SWIVEL (듀얼 모니터 — 창 두 개를 각 모니터에 띄운다)
 ```bash
 python3 tools/build_standalone.py sound-experience
 python3 tools/build_standalone.py swivel
-# → dist/gv90-sound-experience.html  (약 1.0 MB)
-# → dist/gv90-swivel.html            (약 1.3 MB)
+python3 tools/build_standalone.py siesta
 ```
+
+SIESTA 배포본은 화면만 담는다. 조명·커튼 제어는 브릿지가 필요하므로
+단일 파일로 열면 "공간 제어 · 끊김" 으로 표시되고 명령은 기록만 된다.
 
 ---
 
@@ -70,6 +80,16 @@ python3 tools/build_standalone.py swivel
 | `↓` | 다음 단계 |
 | `F` | 전체화면 전환 |
 | `D` | 디버그 오버레이 |
+
+**SIESTA**
+
+| 키 | 동작 |
+|---|---|
+| `Esc` | 인트로로 (공간도 대기 상태로 되돌린다) |
+| `Home` | 모드 선택 화면으로 |
+| `1` ~ `4` | 모드 직접 실행 |
+| `F` | 전체화면 전환 |
+| `D` | 디버그 오버레이 (연결 상태 · 최근 제어 명령) |
 
 주소 뒤에 `?debug=1` 을 붙이면 디버그 오버레이가 켜진 채로 시작한다.
 
@@ -114,6 +134,21 @@ gv90/
 │  │     ├─ touch.js       터치모니터 (메뉴 · 선택 · 재생)
 │  │     └─ display.js     대형모니터 (플레이트 · 크로스페이드 · 자막)
 │  └─ assets/img/{scenes,stage}
+├─ siesta/
+│  ├─ index.html
+│  ├─ config.json          ★ 무드 카피 · 색상 · 조명/커튼/사운드 동작
+│  ├─ css/siesta.css
+│  ├─ js/
+│  │  ├─ main.js           화면 전환 · 모드 실행 · 키오스크
+│  │  ├─ orb.js            무드 오브 + 원형 프로그레스
+│  │  └─ roomcontrol.js    조명·커튼·사운드 제어 (브릿지와 통신)
+│  └─ assets/audio
+├─ bridge/                 공간 제어 브릿지 (Node.js)
+│  ├─ server.js            WebSocket ↔ 장비
+│  ├─ test.js              설치 현장 배선 점검 CLI
+│  ├─ drivers/dmx.js       DMX512 (Enttec USB Pro / Art-Net)
+│  ├─ drivers/curtain.js   RS-485 (Modbus RTU CRC 자동)
+│  └─ config.example.json  ★ 포트 · 채널 패치 · 커튼 프레임
 ├─ tools/
 │  ├─ serve.py                 정적 서버
 │  ├─ pdfplate.py              PDF 플레이트 추출 공용 도구
@@ -330,6 +365,81 @@ python3 tools/extract_swivel_assets.py
 
 ---
 
+## SIESTA
+
+모드를 고르면 화면만 바뀌는 것이 아니라 **공간이 바뀐다.**
+천정 조명이 그 모드 색으로 물들고, 커튼이 열리거나 닫히고, 전용 음원이 흐른다.
+
+### 재생 흐름
+
+```
+INTRO  →  MODE 선택  →  시스템 구동 중  →  선택 화면 복귀
+  ↑                                              │
+  └────────  ESC · 유휴 복귀(2분) ────────────────┘
+```
+
+구동 화면이 끝나 선택 화면으로 돌아와도 **공간은 직전 모드 상태를 유지한다.**
+다음 전환의 대비를 만들기 위한 것으로 제안서 48p ③ 에 명시돼 있다.
+인트로로 완전히 돌아갈 때만 대기 상태(기본 조명 · 커튼 개방 · 음원 정지)로 되돌린다.
+
+### 네 개의 루틴
+
+제안서 47~48p 기준. 색상은 제안서 시안에서 직접 샘플링했다.
+
+| 모드 | 조명 | 커튼 | 음원 |
+|---|---|---|---|
+| **DELIGHT** 활기찬 무드 | 토파즈 옐로우 `#FCC77B` | 개방 | 03:07 |
+| **CALMING** 평온한 무드 | 에미시스트 퍼플 `#9B68CD` | 닫힘 | 03:10 |
+| **COZY** 아늑한 무드 | 에메랄드 블루그린 `#44ACB1` | 닫힘 | 04:09 |
+| **SIESTA** 수면 무드 | 꺼짐 | 닫힘 | 02:30 |
+| *대기 상태* | 기본 조명 색상 | 개방 | — |
+
+### 공간 제어
+
+브라우저는 시리얼 포트를 열 수 없다. 전시장 PC 에서 브릿지 서비스를 띄우고
+콘텐츠는 WebSocket 으로 명령만 보낸다.
+
+```
+브라우저 ──ws://127.0.0.1:8090──▶ 브릿지 ──┬─ DMX512   천정 조명
+                                            └─ RS-485   커튼 모터
+사운드는 PC 오디오 출력 ─────────────────────▶ BeoLab 50
+```
+
+설치·설정·현장 배선 점검은 **[bridge/README.md](bridge/README.md)** 에 있다.
+설치 첫날 `node bridge/test.js --sweep` 으로 조명 채널 패치부터 맞추면 좋다.
+
+**브릿지가 없어도 콘텐츠는 그대로 돌아간다.** 명령은 기록만 되고, 연결 상태는
+화면 왼쪽 아래와 운영자 디버그 오버레이에 나온다. 하드웨어 반입 전에
+화면만 먼저 검수할 때를 위한 것이다. 재연결은 3초에서 시작해 최대 30초까지
+간격을 늘려 가며 계속 시도하므로, 브릿지를 나중에 켜도 결국 붙는다.
+
+### 확인이 필요한 값
+
+- **구동 화면 대기 시간** (`runMs`, 기본 22초) — 제안서의 02:30~04:09 는 음원 길이다.
+  음원은 선택 화면으로 돌아온 뒤에도 계속 흐르므로, 화면 대기 시간은 조명 페이드와
+  커튼 이동이 끝나 관람객이 공간 변화를 확인하기에 충분한 길이로 잡았다.
+  실제 커튼 이동 시간을 재고 나서 조정하는 것이 좋다.
+- **대기 상태의 기본 조명 색상** (`idleRoom.light`) — 제안서에 '기본 조명 색상' 으로만
+  적혀 있어 따뜻한 중립색(`#F2E3CC` 55%)으로 두었다.
+- **인트로 카피** (`introVariant`) — 제안서에 1안/2안이 함께 있다. 현재 1안.
+
+### 수정 가이드
+
+| 하고 싶은 것 | 고칠 곳 |
+|---|---|
+| 무드 카피 · 색상 | `modes[]` |
+| 조명 밝기 · 커튼 방향 · 음원 | `modes[].room` |
+| 구동 화면 대기 시간 | `runMs` |
+| 조명 페이드 시간 | `hardware.dmx.fadeMs` |
+| 음원 볼륨 · 페이드 | `hardware.audio` |
+| 브릿지 주소 | `hardware.bridge.url` |
+| 인트로 카피 1안/2안 | `introVariant` |
+
+장비와 실제로 말하는 방법(포트 이름, DMX 채널 패치, 커튼 프레임)은
+콘텐츠 설정이 아니라 `bridge/config.json` 에 있다.
+
+---
+
 ## 남은 작업
 
 - [ ] Figma 원본 접근 권한 확보 후 타이포·간격·색상 최종 보정
@@ -338,4 +448,6 @@ python3 tools/extract_swivel_assets.py
 - [ ] 실제 음원 스템 적용
 - [ ] SWIVEL 시나리오 선택 카드 설명문 확정 (`wantDraft` 7종)
 - [ ] SWIVEL '1열 운전석·조수석 수면' 단계 카피 수급 (제안서 23p 요청사항)
-- [ ] SIESTA 콘텐츠 개발 — 4개 무드 선택 + 조명·커튼·스피커 제어 연동
+- [ ] SIESTA 무드 음원 4종 수급
+- [ ] SIESTA 현장 배선 후 `bridge/config.json` 실제 값 채우기 (포트 · DMX 패치 · 커튼 프레임)
+- [ ] SIESTA 구동 화면 대기 시간(`runMs`) 을 실제 커튼 이동 시간에 맞춰 조정

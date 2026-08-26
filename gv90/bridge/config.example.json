@@ -1,0 +1,66 @@
+{
+  "$comment": "GV90 공간 제어 브릿지 설정. 이 파일을 config.json 으로 복사해 현장 값으로 채운다.",
+
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8090,
+    "$comment": "전시장 PC 안에서만 쓰므로 127.0.0.1 로 묶는다. 다른 PC 에서 붙이려면 0.0.0.0."
+  },
+
+  "dmx": {
+    "enabled": true,
+    "driver": "enttec-usb-pro",
+    "$driver": "enttec-usb-pro | artnet | null(연결 없이 로그만)",
+
+    "port": "COM3",
+    "$port": "Windows 는 COM3 형태, Linux 는 /dev/ttyUSB0. `node bridge/test.js --ports` 로 확인.",
+    "baudRate": 250000,
+
+    "artnet": { "host": "192.168.0.50", "universe": 0 },
+
+    "fixtures": [
+      {
+        "id": "ceiling",
+        "start": 1,
+        "channels": ["r", "g", "b", "w", "dimmer"],
+        "$channels": "실제 조명의 채널 배열대로 적는다. 쓰지 않는 채널은 빼도 된다.",
+        "$example": "RGBW 5ch 조명이 1번부터 패치돼 있으면 위와 같다."
+      }
+    ],
+
+    "refreshMs": 40,
+    "$refreshMs": "DMX 는 계속 같은 값을 다시 보내야 유지된다. 25fps 로 재전송한다."
+  },
+
+  "curtain": {
+    "enabled": true,
+    "port": "COM4",
+    "baudRate": 9600,
+    "dataBits": 8,
+    "stopBits": 1,
+    "parity": "none",
+
+    "$frames": [
+      "커튼 모터 제조사 프로토콜에 맞춰 보낼 바이트를 16진수로 적는다.",
+      "appendCrc 가 true 면 Modbus RTU CRC16 두 바이트를 자동으로 붙인다.",
+      "아래는 Modbus RTU 로 1번 슬레이브의 0번 레지스터에 1/2 를 쓰는 예다."
+    ],
+    "appendCrc": true,
+    "frames": {
+      "open":  "01 06 00 00 00 01",
+      "close": "01 06 00 00 00 02",
+      "stop":  "01 06 00 00 00 03"
+    }
+  },
+
+  "speaker": {
+    "enabled": false,
+    "$comment": [
+      "음원 재생은 브라우저가 PC 오디오 출력으로 내보내고, 그 출력이 BeoLab 50 에 물린다.",
+      "스피커 자체의 프리셋·볼륨을 네트워크로 바꿔야 할 때만 enabled 를 켜고 아래를 채운다.",
+      "BeoLab 50 은 Beolink Converter NL/ML 또는 네트워크 제어 경로가 제품 구성마다 달라",
+      "현장에서 확인한 엔드포인트를 넣어야 한다."
+    ],
+    "endpoint": ""
+  }
+}
