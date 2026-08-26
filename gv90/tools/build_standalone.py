@@ -28,19 +28,8 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# 인라인할 모듈 (상대 경로 import 는 파일명 기준 이름으로 치환된다)
-MODULES = [
-    "shared/js/util.js",
-    "shared/js/stage.js",
-    "shared/js/sequencer.js",
-    "shared/js/audio.js",
-    "shared/js/kiosk.js",
-    "{content}/js/viz/wavefield.js",
-    "{content}/js/viz/speakers.js",
-    "{content}/js/viz/dome.js",
-    "{content}/js/viz/roadmotion.js",
-    "{content}/js/main.js",
-]
+# 인라인할 모듈은 index.html 의 진입 스크립트에서 import 를 따라가며 찾는다.
+# 콘텐츠마다 모듈 구성이 달라 목록을 손으로 관리하면 금방 어긋난다.
 
 
 def data_uri(path: pathlib.Path) -> str:
@@ -52,6 +41,28 @@ def data_uri(path: pathlib.Path) -> str:
 IMPORT_RE = re.compile(r"^\s*import\s+[\s\S]*?from\s+['\"][^'\"]+['\"]\s*;?[ \t]*\n", re.M)
 EXPORT_RE = re.compile(r"^(\s*)export\s+(?=(?:const|let|var|function|class|async)\b)", re.M)
 DECL_RE = re.compile(r"^(?:export\s+)?(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)", re.M)
+IMPORT_SPEC_RE = re.compile(r"""^\s*import\s+[\s\S]*?from\s+['"]([^'"]+)['"]""", re.M)
+
+
+def resolve_modules(entry):
+    """진입 모듈에서 상대 경로 import 를 따라가 의존 순서대로 모듈을 모은다.
+
+    후위 순회라 항상 '의존하는 모듈이 먼저' 나온다.
+    """
+    order, seen = [], set()
+
+    def walk(path):
+        path = path.resolve()
+        if path in seen:
+            return
+        seen.add(path)
+        for spec in IMPORT_SPEC_RE.findall(path.read_text()):
+            if spec.startswith("."):
+                walk(path.parent / spec)
+        order.append(path)
+
+    walk(entry)
+    return order
 
 
 def bundle_modules(paths):
@@ -123,8 +134,11 @@ def main() -> None:
         styles.append(css)
     html = re.sub(r'\s*<link rel="stylesheet" href="[^"]+">', "", html)
 
-    # --- 모듈: 의존 순서대로 이어 붙여 하나의 인라인 스크립트로 -----------------
-    script = bundle_modules([ROOT / m.format(content=content) for m in MODULES])
+    # --- 모듈: 진입점에서 import 를 따라가 이어 붙인다 --------------------------
+    entry_src = re.search(r'<script type="module" src="([^"]+)"></script>', html)
+    if not entry_src:
+        sys.exit(f"{src}/index.html 에서 진입 모듈을 찾지 못했습니다.")
+    script = bundle_modules(resolve_modules(src / entry_src.group(1)))
 
     # --- 이미지: src 속성을 data URI 로 -----------------------------------------
     html = re.sub(

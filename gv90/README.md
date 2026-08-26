@@ -6,8 +6,8 @@
 | 콘텐츠 | 폴더 | 상태 |
 |---|---|---|
 | **SOUND EXPERIENCE** — 여백의 소리 / SEE THE SOUND | `sound-experience/` | ✅ 구현 완료 |
+| **SWIVEL** — 4가지 상황별 시나리오 (듀얼 모니터) | `swivel/` | ✅ 구현 완료 |
 | **SIESTA** — GEN-UX 네 개의 루틴 | `siesta/` | ⏳ 예정 |
-| **SWIVEL** — 4가지 상황별 시나리오 | `swivel/` | ⏳ 예정 |
 
 세 콘텐츠 모두 같은 키오스크 셸(`shared/`)을 쓴다.
 1920×1080 고정 좌표계로 만들고 실행 시 모니터 해상도에 맞춰 통째로 스케일하므로,
@@ -20,6 +20,7 @@
 ```bash
 python3 tools/serve.py
 # → http://localhost:8080/sound-experience/
+# → http://localhost:8080/swivel/          (두 화면을 나란히 — 검수용)
 ```
 
 브라우저 보안 정책 때문에 `index.html` 을 파일로 직접 열면 동작하지 않는다.
@@ -28,8 +29,13 @@ python3 tools/serve.py
 **전시장 PC 실행** (크롬 키오스크 전체화면 + 서버 자동 기동)
 
 ```
-Windows :  launch\run-windows.bat
-Linux   :  ./launch/run-linux.sh sound-experience 8080
+SOUND EXPERIENCE
+  Windows :  launch\run-sound-experience-windows.bat
+  Linux   :  ./launch/run-sound-experience-linux.sh sound-experience 8080
+
+SWIVEL (듀얼 모니터 — 창 두 개를 각 모니터에 띄운다)
+  Windows :  launch\run-swivel-windows.bat
+  Linux   :  ./launch/run-swivel-linux.sh 8080 1920
 ```
 
 **단일 파일 배포본** — 서버 없이 브라우저로 열기만 하면 되는 한 개짜리 HTML.
@@ -37,7 +43,9 @@ Linux   :  ./launch/run-linux.sh sound-experience 8080
 
 ```bash
 python3 tools/build_standalone.py sound-experience
-# → dist/gv90-sound-experience.html  (약 1 MB, 이미지·설정·스크립트 모두 포함)
+python3 tools/build_standalone.py swivel
+# → dist/gv90-sound-experience.html  (약 1.0 MB)
+# → dist/gv90-swivel.html            (약 1.3 MB)
 ```
 
 ---
@@ -52,6 +60,16 @@ python3 tools/build_standalone.py sound-experience
 | `M` | 음소거 |
 | `F` | 전체화면 전환 |
 | `D` | 디버그 오버레이 (현재 단락·비트·FPS·오디오 상태) |
+
+**SWIVEL**
+
+| 키 | 동작 |
+|---|---|
+| `Esc` `Home` | 메뉴로 |
+| `←` `→` | 같은 상황 안의 앞뒤 시나리오 |
+| `↓` | 다음 단계 |
+| `F` | 전체화면 전환 |
+| `D` | 디버그 오버레이 |
 
 주소 뒤에 `?debug=1` 을 붙이면 디버그 오버레이가 켜진 채로 시작한다.
 
@@ -84,10 +102,24 @@ gv90/
 │  │     ├─ speakers.js    FILL 25개 스피커 순차 점등
 │  │     └─ dome.js        EXPAND 2차원 파동 → 3차원 돔 모핑
 │  └─ assets/{img,audio}
+├─ swivel/
+│  ├─ index.html
+│  ├─ config.json          ★ 카테고리 · 시나리오 · 단계 카피 (여기만 고치면 됨)
+│  ├─ css/swivel.css
+│  ├─ js/
+│  │  ├─ main.js           화면 구성 · 단계 진행 · 키오스크
+│  │  ├─ store.js          두 화면이 함께 보는 상태
+│  │  ├─ syncbus.js        BroadcastChannel 동기화
+│  │  └─ views/
+│  │     ├─ touch.js       터치모니터 (메뉴 · 선택 · 재생)
+│  │     └─ display.js     대형모니터 (플레이트 · 크로스페이드 · 자막)
+│  └─ assets/img/{scenes,stage}
 ├─ tools/
-│  ├─ serve.py             정적 서버
-│  ├─ extract_assets.py    제안서 PDF → 이미지 플레이트 추출
-│  └─ build_standalone.py  단일 HTML 배포본 빌드
+│  ├─ serve.py                 정적 서버
+│  ├─ pdfplate.py              PDF 플레이트 추출 공용 도구
+│  ├─ extract_assets.py        SOUND EXPERIENCE 소재 추출
+│  ├─ extract_swivel_assets.py SWIVEL 소재 추출
+│  └─ build_standalone.py      단일 HTML 배포본 빌드
 ├─ launch/                 전시장 PC 실행 스크립트
 └─ docs/                   제안서 원본
 ```
@@ -208,11 +240,102 @@ PC에 폰트를 설치하기만 하면 `shared/css/base.css` 의 폰트 스택
 
 ---
 
+## SWIVEL
+
+터치모니터와 대형모니터, 두 대로 이루어진 콘텐츠다.
+관람객이 터치모니터에서 상황과 시나리오를 고르면, 대형모니터가 그 시나리오대로
+차량 환경이 바뀌는 모습을 단계별로 보여준다.
+
+### 화면 구성
+
+| 실행 | 주소 | 용도 |
+|---|---|---|
+| 터치모니터 | `swivel/?screen=touch` | 관람객이 만지는 화면 |
+| 대형모니터 | `swivel/?screen=display` | 관람객이 바라보는 화면 |
+| 나란히 보기 | `swivel/` | 두 화면을 한 창에 — 검수·시연용 |
+
+### 두 화면은 어떻게 맞춰지나
+
+같은 PC 의 브라우저 창 두 개가 **BroadcastChannel** 로 상태를 주고받는다.
+서버도, 네트워크 설정도 필요 없다.
+
+- **터치모니터가 상태를 쥔다.** 관람객이 고른 것과 단계 진행을 모두 여기서 결정하고 알린다.
+- **대형모니터는 받은 대로 그린다.** 스스로 판단하지 않으므로 두 화면이 어긋날 일이 없다.
+- 대형모니터를 나중에 켜거나 새로고침해도 `hello` 를 보내면 현재 상태를 다시 받아 곧바로 따라붙는다.
+
+두 창이 **같은 브라우저 프로필**에서 떠야 한다. 실행 스크립트가 `--user-data-dir` 을
+같은 값으로 맞춰 둔다.
+
+### 재생 흐름
+
+```
+메뉴(4가지 상황)  →  시나리오 선택  →  재생(단계 자동 진행)
+      ↑                                      │
+      └──────────  홈 버튼 · 유휴 복귀  ←──────┘
+```
+
+- 단계는 `config.json` 의 `stepMs`(기본 5.6초)마다 자동으로 넘어가고, 마지막 단계에서 멈춘다.
+- 재생 중 `‹ ›` 로 같은 상황 안의 다른 시나리오로 건너뛸 수 있다. 시나리오가 하나뿐이면 화살표가 숨는다.
+- 90초 동안 아무도 만지지 않으면 메뉴로 돌아간다.
+
+### 시나리오 구성
+
+제안서 15~28p 를 그대로 옮겼다. 총 4상황 · 10시나리오 · 28단계.
+
+| 상황 | 시나리오 (단계 수) |
+|---|---|
+| 01 함께 시간 보내기 | 라운지(2) · 프라이빗 라운지(3) |
+| 02 영화 보기 | 1열 간편 시청(1) · 1열 프라이빗 시청(3) · 2열 프라이빗 시청(3) |
+| 03 휴식 | 1열 수면(7) · 2열 수면(1) |
+| 04 쇼퍼 드리븐 | 엔터테인먼트(2) · 비즈니스(2) · 휴식(4) |
+
+### 확인이 필요한 카피
+
+- **시나리오 선택 카드의 설명문** — 제안서에는 '영화 보기' 3종만 확정돼 있다.
+  나머지 7종은 같은 어조로 임시 작성했고, `config.json` 에서 `"wantDraft": true` 로 표시해 두었다.
+- **1열 운전석·조수석 수면(23p)** — 제안서에 `요청사항 | 차량 환경 특징 및 세부 설명 자료` 로
+  표시된 미정 항목이다. 스틸 3컷은 있으나 단계 카피가 없어 재생 목록에서 제외했다.
+  자료가 오면 `row1-sleep` 뒤에 단계로 붙이거나 별도 시나리오로 분리하면 된다.
+
+### 이미지 소재
+
+`tools/extract_swivel_assets.py` 가 제안서의 '대형모니터' 패널을 그대로 꺼낸다.
+패널은 슬라이드에 개별 이미지로 박혀 있어(549×309) 페이지를 다시 래스터화하지 않는다.
+인쇄돼 있던 단계 카피와 워터마크는 위아래 그라디언트 스크림으로 지운다.
+
+```bash
+python3 tools/extract_swivel_assets.py
+```
+
+**원본이 549×309 라 1920×1080 모니터에서는 확대되어 부드럽게 보인다.**
+대형모니터가 주인공인 콘텐츠이므로 정식 소재 교체가 필요하다.
+
+| 파일 | 권장 규격 |
+|---|---|
+| `assets/img/scenes/<시나리오>-<단계>.jpg` | 3840×2160 (최소 1920×1080), 16:9, 카피 없는 원본 |
+| `assets/img/stage/car-exterior.jpg` | 대기 화면 차량 외관 |
+| `assets/img/stage/car-xray.jpg` | 시트가 비쳐 보이는 차량 |
+
+파일명만 맞추면 코드 수정 없이 교체된다. 대기 화면 두 장의 경로는
+`config.json` 의 `copy.display.plates` 에 있다.
+
+### 수정 가이드
+
+| 하고 싶은 것 | 고칠 곳 |
+|---|---|
+| 상황 · 시나리오 · 단계 카피 | `categories[]` |
+| 단계 넘어가는 속도 | `stepMs` |
+| 유휴 복귀 시간 | `kiosk.idleMs` |
+| 동기화 채널 이름 | `sync.channel` (한 PC 에서 두 콘텐츠를 동시에 돌릴 때만) |
+
+---
+
 ## 남은 작업
 
 - [ ] Figma 원본 접근 권한 확보 후 타이포·간격·색상 최종 보정
       (현재는 제안서 PDF 기준으로 구현했다)
 - [ ] 정식 이미지 소재 교체
 - [ ] 실제 음원 스템 적용
+- [ ] SWIVEL 시나리오 선택 카드 설명문 확정 (`wantDraft` 7종)
+- [ ] SWIVEL '1열 운전석·조수석 수면' 단계 카피 수급 (제안서 23p 요청사항)
 - [ ] SIESTA 콘텐츠 개발 — 4개 무드 선택 + 조명·커튼·스피커 제어 연동
-- [ ] SWIVEL 콘텐츠 개발 — 터치 모니터 + 대형 모니터 듀얼 스크린 구성

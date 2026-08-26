@@ -12,15 +12,13 @@
 import sys
 import pathlib
 
-try:
-    import pymupdf
-except ImportError:  # pragma: no cover
-    sys.exit("pymupdf가 필요합니다:  pip install pymupdf")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import pdfplate  # noqa: E402
 
-try:
-    from PIL import Image, ImageDraw, ImageFilter
-except ImportError:  # pragma: no cover
-    sys.exit("pillow가 필요합니다:  pip install pillow")
+pymupdf = pdfplate.pymupdf
+Image, ImageDraw, ImageFilter = pdfplate.Image, pdfplate.ImageDraw, pdfplate.ImageFilter
+apply_copy_mask = pdfplate.apply_copy_mask
+feather_edges = pdfplate.feather_edges
 
 # (출력 파일명, 슬라이드 페이지 번호, 크롭 영역 0~1 비율 x0,y0,x1,y1)
 PLATES = [
@@ -80,7 +78,7 @@ def main() -> None:
         img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
 
         if name in MASKS:
-            img = apply_copy_mask(img, MASKS[name])
+            img = apply_copy_mask(img, MASKS[name]["areas"], blur=MASKS[name]["blur"])
         if name in FEATHER:
             img = feather_edges(img, FEATHER[name])
 
@@ -112,37 +110,6 @@ def extract_wheels(out_dir, root) -> None:
         print(f"{target.relative_to(root)}  {disc.width}x{disc.height}  중심({cx},{cy}) r={r}")
 
 
-def apply_copy_mask(img, spec):
-    """지정 영역을 검정으로 부드럽게 덮어 슬라이드에 인쇄된 카피를 지운다.
-
-    가장자리는 가우시안으로 흐리되, 안쪽 심(core)은 완전한 검정으로 눌러
-    어두운 전시장에서 글자가 유령처럼 남는 것을 막는다.
-    """
-    w, h = img.size
-    blur = spec["blur"]
-    black = Image.new("RGB", (w, h), (0, 0, 0))
-
-    soft = Image.new("L", (w, h), 255)
-    core = Image.new("L", (w, h), 255)
-    ds, dc = ImageDraw.Draw(soft), ImageDraw.Draw(core)
-    for x0, y0, x1, y1 in spec["areas"]:
-        ds.rectangle([x0 * w, y0 * h, x1 * w, y1 * h], fill=0)
-        # 심 영역은 블러 반경만큼 안쪽으로 들여 그린다
-        dc.rectangle([x0 * w + blur, y0 * h + blur, x1 * w - blur, y1 * h - blur], fill=0)
-
-    out = Image.composite(img, black, soft.filter(ImageFilter.GaussianBlur(blur)))
-    return Image.composite(out, black, core)
-
-
-def feather_edges(img, pad):
-    """가장자리를 알파로 흐려 검정 배경 위에서 크롭 경계가 보이지 않게 한다."""
-    w, h = img.size
-    mask = Image.new("L", (w, h), 0)
-    ImageDraw.Draw(mask).rectangle([pad, pad, w - pad, h - pad], fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(pad * 0.6))
-    out = img.convert("RGBA")
-    out.putalpha(mask)
-    return out
 
 
 if __name__ == "__main__":

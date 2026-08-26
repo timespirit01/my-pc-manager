@@ -166,5 +166,7 @@ body.hide-cursor, body.hide-cursor * { cursor: none; }
   line-height: 1.6;
   color: #9DE8A0;
   white-space: pre;
+  /* 화면 위에 겹치는 정보창일 뿐이다. 아래 버튼의 터치를 가로채면 안 된다. */
+  pointer-events: none;
 }
 #debug.is-on { display: block; }

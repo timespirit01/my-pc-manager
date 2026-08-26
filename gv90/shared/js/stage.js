@@ -5,14 +5,17 @@
  */
 export class Stage {
   /**
-   * @param {HTMLElement} node   #stage 요소
-   * @param {{width:number,height:number,fit?:'contain'|'cover'}} opts
+   * @param {HTMLElement} node   스테이지 요소
+   * @param {{width:number,height:number,fit?:'contain'|'cover',container?:HTMLElement}} opts
+   *        container 를 주면 창 대신 그 요소의 크기에 맞춘다.
+   *        (한 화면에 터치·대형 모니터를 나란히 띄우는 미리보기용)
    */
   constructor(node, opts = {}) {
     this.node = node;
     this.width = opts.width || 1920;
     this.height = opts.height || 1080;
     this.fit = opts.fit || 'contain';
+    this.container = opts.container || null;
     this.scale = 1;
     this.offsetX = 0;
     this.offsetY = 0;
@@ -26,12 +29,18 @@ export class Stage {
     this._onResize = () => this.layout();
     window.addEventListener('resize', this._onResize);
     window.addEventListener('orientationchange', this._onResize);
+    if (this.container && window.ResizeObserver) {
+      this._observer = new ResizeObserver(this._onResize);
+      this._observer.observe(this.container);
+    }
     this.layout();
   }
 
   layout() {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const box = this.container ? this.container.getBoundingClientRect() : null;
+    const vw = box ? box.width : window.innerWidth;
+    const vh = box ? box.height : window.innerHeight;
+    if (vw <= 0 || vh <= 0) return;
     const sx = vw / this.width;
     const sy = vh / this.height;
     this.scale = this.fit === 'cover' ? Math.max(sx, sy) : Math.min(sx, sy);
@@ -53,5 +62,6 @@ export class Stage {
   destroy() {
     window.removeEventListener('resize', this._onResize);
     window.removeEventListener('orientationchange', this._onResize);
+    if (this._observer) this._observer.disconnect();
   }
 }

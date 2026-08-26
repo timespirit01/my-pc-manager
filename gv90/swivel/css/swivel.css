@@ -1,0 +1,358 @@
+/* ==========================================================================
+   GV90 SWIVEL — 터치모니터 · 대형모니터 (각 1920 x 1080 기준 고정 좌표)
+   ========================================================================== */
+
+:root {
+  --sw-tile: #C0603C;          /* 상황 타일의 코퍼 오렌지 */
+  --sw-tile-press: #A54F30;
+}
+
+/* --- 뷰포트 배치 ---------------------------------------------------------- */
+
+#viewport { display: flex; }
+
+/* 한 화면만 띄울 때는 스테이지가 창 전체를 차지한다 */
+#viewport[data-mode="touch"] .pane,
+#viewport[data-mode="display"] .pane { position: absolute; inset: 0; }
+#viewport[data-mode="touch"] .pane-frame,
+#viewport[data-mode="display"] .pane-frame { position: absolute; inset: 0; }
+
+/* 두 화면을 나란히 띄우는 검수 모드 */
+#viewport[data-mode="both"] {
+  flex-direction: row;
+  align-items: center;
+  gap: 26px;
+  padding: 26px 30px;
+}
+#viewport[data-mode="both"] .pane {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  height: 100%;
+  justify-content: center;
+}
+#viewport[data-mode="both"] .pane-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--ink-4);
+  background: var(--bg);
+}
+.pane-label {
+  font-size: 13px;
+  letter-spacing: 0.3em;
+  color: var(--ink-3);
+}
+
+.pane-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: 0 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* 대형모니터만 띄운 창은 관람객 입력을 받지 않는다 */
+body.is-display-only { pointer-events: none; }
+
+/* --- 공통 크롬 ------------------------------------------------------------ */
+
+.sw-head {
+  position: absolute;
+  top: 56px;
+  left: 78px;
+  right: 78px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 16px;
+  letter-spacing: 0.42em;
+  color: var(--ink-3);
+  z-index: 40;
+  pointer-events: none;
+}
+
+.sw-screen {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 520ms var(--ease-out);
+}
+.sw-screen.is-active { opacity: 1; visibility: visible; }
+
+.sw-title { position: absolute; left: 78px; top: 132px; z-index: 20; }
+.sw-title h1 {
+  font-family: var(--font-head);
+  font-size: 54px;
+  font-weight: 300;
+  letter-spacing: 0.22em;
+  color: var(--ink);
+}
+.sw-title p {
+  margin-top: 12px;
+  font-size: 18px;
+  letter-spacing: 0.26em;
+  color: var(--ink-3);
+}
+
+.home-btn {
+  position: absolute;
+  top: 118px;
+  right: 78px;
+  width: 54px;
+  height: 54px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+  z-index: 30;
+}
+.home-btn svg { width: 100%; height: 100%; }
+.home-btn circle { fill: none; stroke: currentColor; stroke-width: 1; }
+.home-btn path { fill: currentColor; }
+.home-btn:active { color: var(--ink); }
+.home-btn:focus-visible { outline: 2px solid var(--copper); outline-offset: 6px; }
+
+/* ========================= 터치모니터 · 메뉴 ============================== */
+
+.menu-grid {
+  position: absolute;
+  left: 78px;
+  top: 118px;
+  right: 78px;
+  bottom: 78px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 14px;
+}
+
+.cat-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 40px 44px;
+  border: 0;
+  background: var(--sw-tile);
+  color: #fff;
+  text-align: left;
+  font-family: var(--font-text);
+  cursor: pointer;
+  transition: background 220ms var(--ease-out), transform 220ms var(--ease-out);
+}
+.cat-tile:active { background: var(--sw-tile-press); transform: scale(0.988); }
+.cat-tile:focus-visible { outline: 2px solid #fff; outline-offset: -8px; }
+
+.cat-no {
+  font-size: 19px;
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.72);
+}
+.cat-body { display: flex; flex-direction: column; gap: 10px; }
+.cat-title {
+  font-family: var(--font-head);
+  font-size: 44px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+.cat-en {
+  font-size: 17px;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+/* ===================== 터치모니터 · 시나리오 선택 ========================= */
+
+.scene-cards {
+  position: absolute;
+  left: 78px;
+  right: 78px;
+  top: 310px;
+  display: grid;
+  gap: 26px;
+  grid-template-columns: repeat(3, 1fr);
+}
+.scene-cards[data-count="1"] { grid-template-columns: repeat(1, minmax(0, 560px)); }
+.scene-cards[data-count="2"] { grid-template-columns: repeat(2, 1fr); }
+
+.scene-card {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 1px solid var(--ink-4);
+  background: #0B0B0B;
+  color: inherit;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 240ms var(--ease-out), transform 240ms var(--ease-out);
+}
+.scene-card:active { transform: scale(0.99); }
+.scene-card:focus-visible {
+  border-color: rgba(193, 121, 90, 0.9);
+  outline: none;
+}
+.scene-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+.scene-card-body {
+  display: block;
+  padding: 26px 28px 30px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0));
+}
+.scene-card-title {
+  display: block;
+  font-family: var(--font-head);
+  font-size: 32px;
+  font-weight: 400;
+  color: var(--ink);
+  margin-bottom: 14px;
+}
+.scene-card-want {
+  display: block;
+  font-size: 19px;
+  line-height: 1.62;
+  color: var(--ink-2);
+  white-space: pre-line;
+}
+
+/* ========================= 터치모니터 · 재생 ============================== */
+
+.now-playing {
+  position: absolute;
+  left: 78px;
+  right: 78px;
+  top: 50%;
+  transform: translateY(-42%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+}
+.now-body { text-align: center; flex: 1 1 auto; }
+.now-cat {
+  font-size: 19px;
+  letter-spacing: 0.12em;
+  color: var(--copper);
+  margin-bottom: 18px;
+}
+.now-title {
+  font-family: var(--font-head);
+  font-size: 64px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+
+.arrow {
+  flex: 0 0 auto;
+  width: 76px;
+  height: 96px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font-size: 62px;
+  line-height: 1;
+  font-family: var(--font-head);
+  cursor: pointer;
+  transition: color 200ms var(--ease-out);
+}
+.arrow:active { color: var(--ink); }
+.arrow:focus-visible { outline: 2px solid var(--copper); outline-offset: 4px; }
+.arrow[hidden] { visibility: hidden; display: block; }
+
+/* ========================== 대형모니터 =================================== */
+
+.dp-plate,
+.dp-still {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 900ms var(--ease-out);
+}
+.dp-plate.is-on,
+.dp-still.is-on { opacity: 1; }
+
+.dp-plate img,
+.dp-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 크로스페이드 — 앞 레이어만 보인다 */
+.dp-layer { opacity: 0; transition: opacity 900ms var(--ease-out); }
+.dp-layer.is-front { opacity: 1; }
+
+.dp-wordmark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+  font-family: var(--font-head);
+  font-size: 40px;
+  font-weight: 200;
+  letter-spacing: 0.52em;
+  text-indent: 0.52em;
+  color: rgba(255, 255, 255, 0.5);
+  opacity: 0;
+  transition: opacity 900ms var(--ease-out);
+  z-index: 20;
+  pointer-events: none;
+}
+.dp-wordmark.is-on { opacity: 1; }
+
+.dp-caption {
+  position: absolute;
+  left: 78px;
+  right: 78px;
+  bottom: 74px;
+  z-index: 30;
+  opacity: 0;
+  transition: opacity 500ms var(--ease-out);
+  pointer-events: none;
+}
+.dp-caption.is-on { opacity: 1; }
+.dp-caption.is-on.is-in { animation: caption-rise 760ms var(--ease-out) both; }
+
+.dp-caption-title {
+  font-family: var(--font-head);
+  font-size: 40px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+  margin-bottom: 16px;
+}
+.dp-caption-body {
+  font-size: 24px;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 1420px;
+}
+
+@keyframes caption-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dp-caption.is-on.is-in { animation: none; }
+}
