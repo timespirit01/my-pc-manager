@@ -1,0 +1,437 @@
+/* ==========================================================================
+   GV90 SOUND EXPERIENCE — 씬 스타일 (1920 x 1080 기준 고정 좌표)
+   ========================================================================== */
+
+/* 씬 전체를 덮는 캔버스 (파형 · 펄스 · 돔) */
+.layer-canvas {
+  position: absolute;
+  inset: 0;
+  width: 1920px;
+  height: 1080px;
+}
+
+/* --- 공통 타이포 블록 ----------------------------------------------------- */
+
+.head-block { position: absolute; left: 108px; top: 148px; z-index: 20; }
+
+.eyebrow {
+  font-size: 20px;
+  letter-spacing: 0.16em;
+  color: var(--copper);
+  margin-bottom: 24px;
+}
+
+.title-lg {
+  font-family: var(--font-head);
+  font-size: 92px;
+  font-weight: 300;
+  line-height: 1.12;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+
+.title-brand {
+  font-family: var(--font-head);
+  font-size: 68px;
+  font-weight: 200;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+
+.head-inline {
+  position: absolute;
+  left: 108px;
+  top: 152px;
+  display: flex;
+  align-items: baseline;
+  gap: 58px;
+  z-index: 20;
+}
+.stage-label {
+  font-size: 30px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+.stage-line {
+  font-size: 34px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+
+/* 중앙 정렬 카피 (선언 · 아웃트로) */
+.center-copy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  z-index: 20;
+  text-align: center;
+}
+.statement {
+  font-family: var(--font-head);
+  font-size: 58px;
+  font-weight: 300;
+  letter-spacing: 0.16em;
+  color: var(--ink);
+}
+.statement--sm { font-size: 42px; letter-spacing: 0.06em; }
+.statement-accent {
+  font-size: 26px;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+.statement-sub {
+  font-size: 21px;
+  letter-spacing: 0.03em;
+  color: var(--ink-2);
+}
+
+/* --- TOUCH 유도 --------------------------------------------------------- */
+
+.touch-cta {
+  position: absolute;
+  left: 50%;
+  top: 660px;
+  transform: translateX(-50%);
+  width: 108px;
+  height: 108px;
+  z-index: 30;
+}
+.touch-cta--low { top: 700px; }
+
+.touch-cta .ring,
+.touch-cta .dot {
+  position: absolute;
+  left: 50%;
+  top: 54px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+.touch-cta .ring {
+  width: 66px;
+  height: 66px;
+  border: 1px solid rgba(226, 84, 58, 0.75);
+  animation: cta-ring 2.4s var(--ease-out) infinite;
+}
+.touch-cta .dot {
+  width: 13px;
+  height: 13px;
+  background: var(--accent);
+  box-shadow: 0 0 18px 4px rgba(226, 84, 58, 0.55);
+  animation: cta-dot 2.4s ease-in-out infinite;
+}
+.touch-cta .cta-label {
+  position: absolute;
+  left: 50%;
+  top: 108px;
+  transform: translateX(-50%);
+  font-size: 17px;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+@keyframes cta-ring {
+  0%   { transform: translate(-50%, -50%) scale(0.68); opacity: 0; }
+  22%  { opacity: 0.9; }
+  100% { transform: translate(-50%, -50%) scale(1.55); opacity: 0; }
+}
+@keyframes cta-dot {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+/* ========================= 1. INTRO ====================================== */
+
+.intro-copy {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 400px;
+  text-align: center;
+  z-index: 20;
+}
+.intro-headline {
+  font-family: var(--font-head);
+  font-size: 56px;
+  font-weight: 300;
+  letter-spacing: 0.32em;
+  text-indent: 0.32em;   /* 자간이 넓을 때 생기는 오른쪽 쏠림 보정 */
+  color: var(--ink);
+}
+.intro-sub {
+  margin-top: 34px;
+  font-size: 40px;
+  font-weight: 200;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  color: var(--ink-3);
+}
+.intro-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 890px;
+  text-align: center;
+  font-size: 21px;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+  z-index: 20;
+}
+
+/* ========================= 2. CLEAR ====================================== */
+
+.clear-frame {
+  position: absolute;
+  left: 432px;
+  top: 324px;
+  width: 1056px;
+  height: 470px;
+  z-index: 10;
+}
+.clear-frame .shield {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.shield-base {
+  fill: none;
+  stroke: rgba(134, 214, 247, 0.14);
+  stroke-width: 2;
+}
+.shield-run {
+  fill: none;
+  stroke: url(#shieldGrad);
+  stroke-width: 3;
+  stroke-linecap: round;
+  /* 둘레를 도는 빛 — stroke-dashoffset 은 JS 에서 애니메이션 */
+  stroke-dasharray: 620 2280;
+}
+.clear-frame .car-side {
+  position: absolute;
+  left: 73px;
+  top: 57px;
+  width: 910px;
+  height: auto;
+}
+
+.noise-list {
+  position: absolute;
+  left: 158px;
+  top: 690px;
+  list-style: none;
+  z-index: 20;
+  border-left: 1px solid var(--ink-4);
+  padding-left: 24px;
+}
+.noise-list li {
+  font-size: 27px;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  opacity: 0;
+  transform: translateX(-14px);
+  transition: opacity 600ms var(--ease-out), transform 600ms var(--ease-out);
+}
+.noise-list li + li { margin-top: 22px; }
+.noise-list li.is-in { opacity: 1; transform: none; }
+
+/* ========================= 3. FILL ======================================= */
+
+.fill-counter {
+  position: absolute;
+  right: 112px;
+  top: 236px;
+  text-align: right;
+  z-index: 20;
+}
+.fill-counter .count {
+  font-family: var(--font-head);
+  font-size: 116px;
+  font-weight: 200;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.fill-counter .of {
+  font-size: 34px;
+  font-weight: 200;
+  color: var(--ink-3);
+  margin-left: 10px;
+}
+.fill-counter .unit {
+  display: block;
+  margin-top: 6px;
+  font-size: 19px;
+  letter-spacing: 0.18em;
+  color: var(--copper);
+}
+
+.fill-plate {
+  position: absolute;
+  left: 360px;
+  top: 332px;
+  width: 1200px;
+  height: 547px;
+  z-index: 10;
+}
+.fill-plate .car-top { width: 100%; height: 100%; display: block; }
+.fill-plate canvas {
+  position: absolute;
+  inset: 0;
+  width: 1200px;
+  height: 547px;
+}
+
+.feature-grid {
+  position: absolute;
+  left: 108px;
+  top: 400px;
+  width: 1704px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 78px;
+  z-index: 20;
+}
+.feature-card .tag {
+  font-size: 18px;
+  letter-spacing: 0.02em;
+  color: var(--copper);
+  margin-bottom: 18px;
+}
+.feature-card h3 {
+  font-family: var(--font-head);
+  font-size: 40px;
+  font-weight: 300;
+  line-height: 1.32;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+  white-space: pre-line;
+  margin-bottom: 20px;
+}
+.feature-card p {
+  font-size: 20px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  white-space: pre-line;
+}
+.feature-card img {
+  display: block;
+  margin-top: 28px;
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 3px;
+}
+
+/* ========================= 4. EXPAND ===================================== */
+
+.expand-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 1200ms var(--ease-out);
+}
+#scene-expand.is-active .expand-bg { opacity: 1; }
+.expand-bg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1);
+  transition: transform 3200ms var(--ease-out);
+}
+#scene-expand.is-dome .expand-bg img { transform: scale(1.075); }
+/* 카피 가독성을 위한 상하 비네트 */
+.expand-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.12) 26%,
+                    rgba(0,0,0,0.12) 62%, rgba(0,0,0,0.88) 100%);
+}
+
+#cv-expand { z-index: 5; }
+
+.expand-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 846px;
+  text-align: center;
+  font-size: 21px;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+  z-index: 20;
+}
+
+.axis-list {
+  position: absolute;
+  right: 112px;
+  top: 372px;
+  list-style: none;
+  text-align: right;
+  z-index: 20;
+}
+.axis-list li {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 700ms var(--ease-out), transform 700ms var(--ease-out);
+}
+.axis-list li + li { margin-top: 40px; }
+.axis-list li.is-in { opacity: 1; transform: none; }
+.axis-list .en {
+  display: block;
+  font-size: 24px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.axis-list .ko {
+  display: block;
+  font-size: 30px;
+  font-weight: 300;
+  color: var(--ink);
+}
+
+.expand-statement {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 148px;
+  text-align: center;
+  z-index: 20;
+}
+.expand-statement .statement-sub { margin-top: 18px; }
+
+.app-row {
+  display: block;
+  margin-top: 46px;
+  width: 840px;
+  height: auto;
+}
+.app-chips {
+  display: flex;
+  gap: 26px;
+  margin-top: 46px;
+  list-style: none;
+}
+.app-chips li {
+  padding: 12px 22px;
+  border: 1px solid var(--ink-4);
+  border-radius: 999px;
+  font-size: 19px;
+  color: var(--ink-2);
+}
+
+/* ========================= 5. OUTRO ====================================== */
+
+#scene-outro .statement-accent { margin-top: 14px; }
+#scene-outro .statement-sub { color: var(--ink-3); }
