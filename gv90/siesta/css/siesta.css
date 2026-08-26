@@ -1,0 +1,238 @@
+/* ==========================================================================
+   GV90 SIESTA — 무드 선택 (1920 x 1080 기준 고정 좌표)
+   ========================================================================== */
+
+.layer-canvas {
+  position: absolute;
+  inset: 0;
+  width: 1920px;
+  height: 1080px;
+}
+
+/* 선택한 모드 색이 화면 전체에 옅게 남는다 — 공간의 조명과 짝을 맞춘다 */
+#stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 46%,
+              var(--mood, transparent) 0%, transparent 62%);
+  opacity: 0;
+  transition: opacity 2200ms var(--ease-out), background 2200ms var(--ease-out);
+  pointer-events: none;
+  z-index: 1;
+}
+#stage.has-mood::before { opacity: 0.14; }
+
+/* ========================= 1. INTRO ====================================== */
+
+.intro-copy {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 402px;
+  text-align: center;
+  z-index: 20;
+}
+.intro-headline {
+  font-family: var(--font-head);
+  font-size: 46px;
+  font-weight: 300;
+  line-height: 1.55;
+  letter-spacing: 0.14em;
+  text-indent: 0.14em;
+  color: var(--ink);
+  white-space: pre-line;
+}
+.intro-sub {
+  margin-top: 26px;
+  font-size: 27px;
+  font-weight: 200;
+  letter-spacing: 0.16em;
+  text-indent: 0.16em;
+  color: var(--ink-3);
+}
+
+.touch-cta {
+  position: absolute;
+  left: 50%;
+  top: 700px;
+  transform: translateX(-50%);
+  width: 108px;
+  height: 108px;
+  z-index: 30;
+}
+.touch-cta .ring,
+.touch-cta .dot {
+  position: absolute;
+  left: 50%;
+  top: 54px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+.touch-cta .ring {
+  width: 74px;
+  height: 74px;
+  border: 1px solid rgba(226, 140, 96, 0.6);
+  animation: cta-ring 2.6s var(--ease-out) infinite;
+}
+.touch-cta .dot {
+  width: 12px;
+  height: 12px;
+  background: #E28C60;
+  box-shadow: 0 0 18px 4px rgba(226, 140, 96, 0.5);
+  animation: cta-dot 2.6s ease-in-out infinite;
+}
+.touch-cta .cta-label {
+  position: absolute;
+  left: 50%;
+  top: 106px;
+  transform: translateX(-50%);
+  font-size: 16px;
+  letter-spacing: 0.2em;
+  color: #E28C60;
+  white-space: nowrap;
+}
+@keyframes cta-ring {
+  0%   { transform: translate(-50%, -50%) scale(0.7); opacity: 0; }
+  22%  { opacity: 0.85; }
+  100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+}
+@keyframes cta-dot {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+.intro-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 866px;
+  text-align: center;
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+  z-index: 20;
+}
+
+/* ========================= 2. MODE 선택 ================================== */
+
+.mode-grid {
+  position: absolute;
+  left: 78px;
+  right: 78px;
+  top: 128px;
+  bottom: 78px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 22px;
+  z-index: 20;
+}
+
+.mode-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 0 0 46px 48px;
+  border: 1px solid var(--ink-4);
+  background: #050505;
+  color: inherit;
+  text-align: left;
+  font-family: var(--font-text);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 300ms var(--ease-out), transform 300ms var(--ease-out);
+}
+.mode-tile:active { transform: scale(0.992); }
+.mode-tile:focus-visible { outline: none; border-color: rgba(255, 255, 255, 0.45); }
+
+/* 모드 색이 오른쪽 위에서 번져 들어온다 (제안서 52p) */
+.mode-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 62% 78% at 78% 12%,
+              var(--tile) 0%, transparent 68%);
+  opacity: 0.85;
+  transition: opacity 400ms var(--ease-out);
+}
+.mode-tile:active::before { opacity: 1; }
+
+.mode-title,
+.mode-desc { position: relative; z-index: 1; }
+.mode-title {
+  font-family: var(--font-head);
+  font-size: 40px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  margin-bottom: 14px;
+}
+.mode-desc {
+  font-size: 20px;
+  letter-spacing: 0.01em;
+  color: var(--ink-2);
+}
+
+/* ========================= 3. 구동 중 ==================================== */
+
+.run-eyebrow {
+  position: absolute;
+  left: 78px;
+  top: 128px;
+  font-size: 19px;
+  letter-spacing: 0.08em;
+  color: #C4674A;
+  z-index: 20;
+}
+
+.run-copy {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 640px;
+  text-align: center;
+  z-index: 20;
+}
+.run-title {
+  font-family: var(--font-head);
+  font-size: 44px;
+  font-weight: 300;
+  letter-spacing: 0.03em;
+  color: var(--ink);
+  margin-bottom: 16px;
+}
+.run-sub {
+  font-size: 22px;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+}
+
+/* --- 하드웨어 연결 표시 (운영자용) --------------------------------------- */
+
+#link-badge {
+  position: absolute;
+  left: 78px;
+  bottom: 52px;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  z-index: 50;
+}
+#link-badge.is-shown { display: flex; }
+#link-badge .led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #E2543A;
+}
+#link-badge.is-online .led { background: #6FCF8A; }
+#link-badge.is-connecting .led { background: #E8955C; }
+
+@media (prefers-reduced-motion: reduce) {
+  .touch-cta .ring, .touch-cta .dot { animation: none; }
+}

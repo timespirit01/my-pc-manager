@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>GV90 SOUND EXPERIENCE</title>
+<!-- 전시장 PC 콘솔에 favicon 404 가 남지 않도록 빈 아이콘을 인라인으로 둔다 -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>">
+<link rel="stylesheet" href="../shared/css/base.css">
+<link rel="stylesheet" href="css/sound.css">
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+
+    <!-- 공통 크롬 -->
+    <header class="chrome-head">
+      <span data-chrome="left"></span>
+      <span data-chrome="right"></span>
+    </header>
+
+    <nav class="chrome-progress" id="progress"></nav>
+
+    <!-- ================= 1. INTRO ================= -->
+    <section class="scene" id="scene-intro">
+      <canvas class="layer-canvas" id="cv-intro"></canvas>
+      <div class="intro-copy">
+        <h1 class="intro-headline" data-copy="intro.headline"></h1>
+        <p class="intro-sub" data-copy="intro.sub"></p>
+      </div>
+      <div class="touch-cta" id="intro-cta">
+        <span class="ring"></span>
+        <span class="dot"></span>
+        <span class="cta-label" data-copy="intro.cta"></span>
+      </div>
+      <p class="intro-hint" data-copy="intro.hint"></p>
+    </section>
+
+    <!-- ================= 2. CLEAR ================= -->
+    <section class="scene" id="scene-clear">
+      <canvas class="layer-canvas" id="cv-clear"></canvas>
+
+      <div class="clear-frame">
+        <svg class="shield" viewBox="0 0 980 500" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="shieldGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%"   stop-color="#86D6F7" stop-opacity="0"></stop>
+              <stop offset="35%"  stop-color="#86D6F7" stop-opacity="0.95"></stop>
+              <stop offset="60%"  stop-color="#CFEEFF" stop-opacity="1"></stop>
+              <stop offset="100%" stop-color="#86D6F7" stop-opacity="0"></stop>
+            </linearGradient>
+            <filter id="shieldGlow" x="-25%" y="-25%" width="150%" height="150%">
+              <feGaussianBlur stdDeviation="7" result="b"></feGaussianBlur>
+              <feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+            </filter>
+          </defs>
+          <rect class="shield-base" x="3" y="3" width="974" height="494" rx="58"></rect>
+          <rect class="shield-run"  x="3" y="3" width="974" height="494" rx="58"
+                filter="url(#shieldGlow)"></rect>
+        </svg>
+        <canvas class="road" id="cv-road"></canvas>
+
+        <!-- 차량 리그: 차체와 휠을 함께 상하동시키고, 휠만 따로 회전시킨다 -->
+        <div class="car-rig" id="car-rig">
+          <img class="car-side" src="assets/img/car-side.png" alt="">
+          <img class="wheel" id="wheel-front" src="assets/img/wheel-front.png" alt="">
+          <img class="wheel" id="wheel-rear" src="assets/img/wheel-rear.png" alt="">
+        </div>
+      </div>
+
+      <div class="beat is-active" data-beat="clear.title">
+        <div class="head-block">
+          <p class="eyebrow" data-copy="clear.eyebrow"></p>
+          <h2 class="title-lg" data-copy="clear.title"></h2>
+        </div>
+      </div>
+
+      <div class="beat" data-beat="clear.stage">
+        <div class="head-inline">
+          <span class="stage-label" id="clear-label"></span>
+          <span class="stage-line" id="clear-line"></span>
+        </div>
+        <ul class="noise-list" id="clear-items"></ul>
+      </div>
+    </section>
+
+    <!-- ================= 3. FILL ================= -->
+    <section class="scene" id="scene-fill">
+
+      <div class="beat" data-beat="fill.map">
+        <div class="head-block">
+          <p class="eyebrow" data-copy="fill.eyebrow"></p>
+          <h2 class="title-lg" data-copy="fill.title"></h2>
+        </div>
+        <div class="fill-counter">
+          <span class="count" id="fill-count">0</span><span class="of">/ 25</span>
+          <span class="unit" data-copy="fill.counterUnit"></span>
+        </div>
+        <div class="fill-plate" id="fill-plate">
+          <img class="car-top" src="assets/img/car-top.png" alt="">
+          <canvas id="cv-fill"></canvas>
+        </div>
+      </div>
+
+      <div class="beat" data-beat="fill.statement">
+        <div class="center-copy">
+          <h2 class="statement" data-copy="fill.statement.headline"></h2>
+          <p class="statement-accent" data-copy="fill.statement.accent"></p>
+          <p class="statement-sub" data-copy="fill.statement.sub"></p>
+        </div>
+      </div>
+
+      <div class="beat" data-beat="fill.features">
+        <div class="head-block">
+          <p class="eyebrow" data-copy="fill.eyebrow"></p>
+          <h2 class="title-brand" data-copy="fill.featuresTitle"></h2>
+        </div>
+        <div class="feature-grid" id="fill-features"></div>
+      </div>
+    </section>
+
+    <!-- ================= 4. EXPAND ================= -->
+    <section class="scene" id="scene-expand">
+      <div class="expand-bg">
+        <img src="assets/img/interior.jpg" alt="">
+      </div>
+      <canvas class="layer-canvas" id="cv-expand"></canvas>
+
+      <div class="beat" data-beat="expand.ripple">
+        <div class="head-block">
+          <p class="eyebrow" data-copy="expand.eyebrow"></p>
+          <h2 class="title-lg" data-copy="expand.title"></h2>
+        </div>
+        <div class="touch-cta touch-cta--low" id="expand-cta">
+          <span class="ring"></span>
+          <span class="dot"></span>
+          <span class="cta-label" data-copy="expand.cta"></span>
+        </div>
+        <p class="expand-hint" data-copy="expand.hint"></p>
+      </div>
+
+      <div class="beat" data-beat="expand.dome">
+        <ul class="axis-list" id="expand-axes"></ul>
+        <div class="expand-statement">
+          <h2 class="statement statement--sm" data-copy="expand.statement.headline"></h2>
+          <p class="statement-sub" data-copy="expand.statement.sub"></p>
+        </div>
+      </div>
+
+      <div class="beat" data-beat="expand.apps">
+        <div class="center-copy">
+          <h2 class="statement" data-copy="expand.apps.headline"></h2>
+          <p class="statement-accent" data-copy="expand.apps.accent"></p>
+          <p class="statement-sub" data-copy="expand.apps.sub"></p>
+          <img class="app-row" id="expand-apps" alt="">
+          <ul class="app-chips" id="expand-app-chips" hidden></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 5. OUTRO ================= -->
+    <section class="scene" id="scene-outro">
+      <canvas class="layer-canvas" id="cv-outro"></canvas>
+      <div class="center-copy">
+        <h2 class="statement" data-copy="outro.headline"></h2>
+        <p class="statement-accent" data-copy="outro.accent"></p>
+        <p class="statement-sub" data-copy="outro.sub"></p>
+      </div>
+    </section>
+
+    <pre id="debug"></pre>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

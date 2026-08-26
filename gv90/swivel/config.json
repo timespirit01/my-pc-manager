@@ -1,0 +1,299 @@
+{
+  "$comment": "GV90 SWIVEL — 카피·타이밍을 여기서 수정한다. 코드 수정 불필요.",
+  "stage": {
+    "width": 1920,
+    "height": 1080
+  },
+  "kiosk": {
+    "idleMs": 90000
+  },
+  "sync": {
+    "channel": "gv90-swivel"
+  },
+  "stepMs": 5600,
+  "chrome": {
+    "left": "GENESIS GV90",
+    "right": "SWIVEL",
+    "rightScene": "SWIVELING SEAT"
+  },
+  "copy": {
+    "$comment": "wantDraft 가 true 인 시나리오 설명은 임시 카피다. 제안서에는 '영화 보기' 3종만 확정돼 있다.",
+    "select": {
+      "headline": "어떤 환경을 원하십니까?",
+      "sub": "WHICH ENVIRONMENT DO YOU PREFER?"
+    },
+    "playing": {
+      "headline": "차량 환경이 변화하고 있습니다",
+      "sub": "THE VEHICLE ENVIRONMENT IS CHANGING"
+    },
+    "display": {
+      "wordmark": "SWIVELING SEAT",
+      "plates": {
+        "menu": "assets/img/stage/car-exterior.jpg",
+        "select": "assets/img/stage/car-xray.jpg"
+      }
+    },
+    "sceneUnit": "SCENES"
+  },
+  "categories": [
+    {
+      "id": "together",
+      "no": "01",
+      "title": "함께 시간 보내기",
+      "en": "TOGETHER",
+      "scenes": [
+        {
+          "id": "lounge",
+          "title": "라운지",
+          "want": "정차한 차 안에서 마주 앉아\n편하게 이야기 나누고 싶습니다.",
+          "wantDraft": true,
+          "steps": [
+            {
+              "title": "정차 상태 (P단/ 변속불가/ EPB ON)",
+              "body": "회전형 변속 레버가 두시 위치인 경우 스위블 동작시 열두시 위치로 이동하여 직관적으로 정차중에만 사용할 수 있음을 보여줍니다.",
+              "image": "assets/img/scenes/lounge-1.jpg"
+            },
+            {
+              "title": "1열 시트 회전(스위블)",
+              "body": "스위블 실행 중에는 탑승하거나 해당 시트에 앉을 수 없으며 회전이 완료된 후에 탑승 가능합니다.",
+              "image": "assets/img/scenes/lounge-2.jpg"
+            }
+          ],
+          "poster": "assets/img/scenes/lounge-1.jpg"
+        },
+        {
+          "id": "private-lounge",
+          "title": "프라이빗 라운지",
+          "want": "외부와 완전히 차단된 공간에서\n중요한 대화에 집중하고 싶습니다.",
+          "wantDraft": true,
+          "steps": [
+            {
+              "title": "커튼 및 루프 글라스 디밍",
+              "body": "커튼과 디밍 글라스를 통해 외부와 차단된 환경을 제공하며 실내 승객 소통 중심 공간을 완성합니다.",
+              "image": "assets/img/scenes/private-lounge-1.jpg"
+            },
+            {
+              "title": "음원 재생",
+              "body": "은은한 음악이 함께하는 대면 공간은 외부의 방해 없이 클라이언트와의 중요한 대화에 집중할 수 있도록 도와줍니다.",
+              "image": "assets/img/scenes/private-lounge-2.jpg"
+            },
+            {
+              "title": "공조 외기 순환",
+              "body": "외부 공기와 실내 순환 공기를 상황에 맞게 전환하여, 쾌적한 실내 공기질을 유지해줍니다.",
+              "image": "assets/img/scenes/private-lounge-3.jpg"
+            }
+          ],
+          "poster": "assets/img/scenes/private-lounge-1.jpg"
+        }
+      ]
+    },
+    {
+      "id": "cinema",
+      "no": "02",
+      "title": "영화 보기",
+      "en": "CINEMAS",
+      "scenes": [
+        {
+          "id": "row1-quick",
+          "title": "1열 간편 시청",
+          "want": "잠시 정차 및 대기하는 상황에서\n콘텐츠를 감상하고 싶습니다.",
+          "steps": [
+            {
+              "title": "디스플레이 팝업",
+              "body": "대화면 디스플레이로 컨텐츠를 시청하며 픽업을 기다리거나 정차하여 대기하는 시간도 효율적으로 보낼 수 있습니다.",
+              "image": "assets/img/scenes/row2-private-1.jpg"
+            }
+          ],
+          "poster": "assets/img/scenes/row1-quick-1.jpg"
+        },
+        {
+          "id": "row1-private",
+          "title": "1열 프라이빗 시청",
+          "want": "편안한 자세로 장시간 영화를\n몰입감 있게 즐기고 싶습니다.",
+          "steps": [
+            {
+              "title": "디스플레이 팝업",
+              "body": "대화면 디스플레이로 컨텐츠를 시청하며 픽업을 기다리거나 정차하여 대기하는 시간도 효율적으로 보낼 수 있습니다.",
+              "image": "assets/img/scenes/row2-private-1.jpg"
+            },
+            {
+              "title": "운전석 영상 시청 포지션 적용",
+              "body": "편안하고 더 넓은 공간에서 오직 영화에만 몰입하여 감상할 수 있는 공간을 완성합니다.",
+              "image": "assets/img/scenes/row1-private-2.jpg"
+            },
+            {
+              "title": "스티어링 휠 전방 이동",
+              "body": "스티어링 휠이 전방으로 이동하여 시야를 가리지 않고 여유 공간을 확보, 편안한 시청 자세를 지원합니다.",
+              "image": "assets/img/scenes/row2-private-3.jpg"
+            }
+          ],
+          "poster": "assets/img/scenes/row1-private-1.jpg"
+        },
+        {
+          "id": "row2-private",
+          "title": "2열 프라이빗 시청",
+          "want": "VIP 스위트 같은 공간에서\n영화를 감상하고 싶습니다.",
+          "steps": [
+            {
+              "title": "디스플레이 팝업",
+              "body": "대화면 디스플레이로 컨텐츠를 시청하며 픽업을 기다리거나 정차하여 대기하는 시간도 효율적으로 보낼 수 있습니다.",
+              "image": "assets/img/scenes/row2-private-1.jpg"
+            },
+            {
+              "title": "커튼 및 루프 글라스디밍",
+              "body": "정차 상황에서 시네마틱 디스플레이에 커튼이 연동되어 전후석 승객이 몰입할 수 있는 영화관 환경을 만듭니다.",
+              "image": "assets/img/scenes/row2-private-2.jpg"
+            },
+            {
+              "title": "스티어링 휠 전방 이동",
+              "body": "스티어링 휠이 전방으로 이동하여 시야를 가리지 않고 여유 공간을 확보, 편안한 시청 자세를 지원합니다.",
+              "image": "assets/img/scenes/row2-private-3.jpg"
+            }
+          ],
+          "poster": "assets/img/scenes/row2-private-1.jpg"
+        }
+      ]
+    },
+    {
+      "id": "rest",
+      "no": "03",
+      "title": "휴식",
+      "en": "REST",
+      "scenes": [
+        {
+          "id": "row1-sleep",
+          "title": "1열 수면",
+          "want": "운전석에서 방해받지 않고\n깊게 쉬어가고 싶습니다.",
+          "wantDraft": true,
+          "steps": [
+            {
+              "title": "커튼 및 루프 글라스디밍",
+              "body": "한낮의 강한 햇빛이나 야간의 외부 불빛으로부터 눈부심 없이 편안한 휴식 환경을 제공합니다.",
+              "image": "assets/img/scenes/rest-1.jpg"
+            },
+            {
+              "title": "향 분사",
+              "body": "은은한 향이 실내 곳곳으로 퍼지며, 후각을 자극해 심신의 긴장을 풀어주고 편안한 휴식 분위기를 조성합니다.",
+              "image": "assets/img/scenes/rest-2.jpg"
+            },
+            {
+              "title": "시트 열선 작동",
+              "body": "시트 열선이 작동해 근육의 긴장을 풀어주고, 장거리 운전이나 대기 시간 동안 쌓인 피로를 부드럽게 이완시켜줍니다.",
+              "image": "assets/img/scenes/row1-sleep-3.jpg"
+            },
+            {
+              "title": "실내 조명 및 디스플레이 OFF",
+              "body": "불필요한 빛 자극을 차단하기 위해 실내 조명과 디스플레이가 꺼지며 온전한 휴식 환경을 조성합니다.",
+              "image": "assets/img/scenes/row1-sleep-4.jpg"
+            },
+            {
+              "title": "스티어링 휠 전방 이동",
+              "body": "스티어링 휠이 전방으로 이동해 여유로운 공간과 편안한 자세를 확보합니다.",
+              "image": "assets/img/scenes/row1-sleep-5.jpg"
+            },
+            {
+              "title": "휴식 모드 시트 포지션 적용",
+              "body": "시트가 등받이 각도와 좌석 높이, 다리 받침 등을 종합적으로 조정해 신체 부담을 최소화하는 휴식 전용 포지션으로 적용됩니다.",
+              "image": "assets/img/scenes/rest-3.jpg"
+            },
+            {
+              "title": "기상 알림 제공",
+              "body": "원하는 시간을 설정해두면, 휴식이 끝나는 시점에 맞춰 부드러운 알람이 작동해 편안하게 각성을 유도합니다.",
+              "image": "assets/img/scenes/row1-sleep-7.jpg"
+            }
+          ],
+          "poster": "assets/img/scenes/row1-sleep-1.jpg"
+        },
+        {
+          "id": "row2-sleep",
+          "title": "2열 수면",
+          "want": "2열을 침실처럼 만들어\n제대로 눕고 싶습니다.",
+          "wantDraft": true,
+          "steps": [
+            {
+              "title": "조수석 스위블",
+              "body": "1열 조수석을 돌려 2열 시트와 연결하는 순간, 차 안은 언제 어디서나 깊은 잠에 빠져들 수 있는 프라이빗 침실로 변합니다.",
+              "image": "assets/img/scenes/row2-sleep-1.jpg"
+            }
+          ],
+          "poster": "assets/img/scenes/row2-sleep-1.jpg"
+        }
+      ]
+    },
+    {
+      "id": "chauffeur",
+      "no": "04",
+      "title": "쇼퍼 드리븐",
+      "en": "CHAUFFEUR-DRIVEN",
+      "scenes": [
+        {
+          "id": "entertainment",
+          "title": "엔터테인먼트",
+          "want": "뒷좌석에서 원하는 콘텐츠를\n독립적으로 즐기고 싶습니다.",
+          "wantDraft": true,
+          "steps": [
+            {
+              "title": "ccRC 이용",
+              "body": "후석 스마트 TV 시스템으로, 원하는 OTT 서비스를 독립적으로 즐길 수 있습니다.",
+              "image": "assets/img/scenes/entertainment-1.jpg"
+            },
+            {
+              "title": "VIP 냉장고 사용",
+              "body": "탑승부터 하차한 뒤로도 냉장이 지속되는 VIP 냉장고를 통해 이동하는 스위트룸의 경험을 재현합니다.",
+              "image": "assets/img/scenes/entertainment-2.jpg"
+            }
+          ],
+          "poster": "assets/img/scenes/entertainment-1.jpg"
+        },
+        {
+          "id": "business",
+          "title": "비즈니스",
+          "want": "이동하는 동안에도\n업무를 이어가고 싶습니다.",
+          "wantDraft": true,
+          "steps": [
+            {
+              "title": "테이블 이용",
+              "body": "업무를 볼 수 있는 테이블까지 이동 중에도 시간의 가치를 높이는 퍼스트 클래스의 경험을 선사합니다.",
+              "image": "assets/img/scenes/business-1.jpg"
+            },
+            {
+              "title": "REST 모드",
+              "body": "2열을 침대처럼 눕혀 달리는 차 안에서 완벽한 차원의 휴식을 경험합니다.",
+              "image": "assets/img/scenes/business-2.jpg"
+            }
+          ],
+          "poster": "assets/img/scenes/business-1.jpg"
+        },
+        {
+          "id": "rest-chauffeur",
+          "title": "휴식",
+          "want": "기사가 운전하는 동안\n조용히 쉬어가고 싶습니다.",
+          "wantDraft": true,
+          "steps": [
+            {
+              "title": "커튼 및 루프 글라스디밍",
+              "body": "한낮의 강한 햇빛이나 야간의 외부 불빛으로부터 눈부심 없이 편안한 휴식 환경을 제공합니다.",
+              "image": "assets/img/scenes/rest-1.jpg"
+            },
+            {
+              "title": "향 분사",
+              "body": "은은한 향이 실내 곳곳으로 퍼지며, 후각을 자극해 심신의 긴장을 풀어주고 편안한 휴식 분위기를 조성합니다.",
+              "image": "assets/img/scenes/rest-2.jpg"
+            },
+            {
+              "title": "휴식 모드 시트 포지션 적용",
+              "body": "시트가 등받이 각도와 좌석 높이, 다리 받침 등을 종합적으로 조정해 신체 부담을 최소화하는 휴식 전용 포지션으로 적용됩니다.",
+              "image": "assets/img/scenes/rest-3.jpg"
+            },
+            {
+              "title": "후석 엔터테인먼트 OFF",
+              "body": "후석 엔터테인먼트 시스템이 꺼져, 불필요한 화면과 소리를 차단하고 차분한 휴식 환경을 만들어줍니다.",
+              "image": "assets/img/scenes/rest-4.jpg"
+            }
+          ],
+          "poster": "assets/img/scenes/rest-1.jpg"
+        }
+      ]
+    }
+  ]
+}

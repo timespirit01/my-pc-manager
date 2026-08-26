@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>GV90 SIESTA</title>
+<!-- 전시장 PC 콘솔에 favicon 404 가 남지 않도록 빈 아이콘을 인라인으로 둔다 -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>">
+<link rel="stylesheet" href="../shared/css/base.css">
+<link rel="stylesheet" href="css/siesta.css">
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+
+    <header class="chrome-head">
+      <span data-chrome="left"></span>
+      <span data-chrome="right" id="head-right"></span>
+    </header>
+
+    <!-- ================= 1. INTRO ================= -->
+    <section class="scene" id="scene-intro">
+      <div class="intro-copy">
+        <h1 class="intro-headline" id="intro-headline"></h1>
+        <p class="intro-sub" id="intro-sub"></p>
+      </div>
+      <div class="touch-cta" id="intro-cta">
+        <span class="ring"></span>
+        <span class="dot"></span>
+        <span class="cta-label" data-copy="introCta"></span>
+      </div>
+      <p class="intro-hint" data-copy="introHint"></p>
+    </section>
+
+    <!-- ================= 2. MODE 선택 ================= -->
+    <section class="scene" id="scene-select">
+      <div class="mode-grid" id="mode-grid"></div>
+    </section>
+
+    <!-- ================= 3. 시스템 구동 중 ================= -->
+    <section class="scene" id="scene-running">
+      <canvas class="layer-canvas" id="cv-orb"></canvas>
+      <p class="run-eyebrow" data-copy="runningEyebrow"></p>
+      <div class="run-copy">
+        <h2 class="run-title" id="run-title"></h2>
+        <p class="run-sub" id="run-sub"></p>
+      </div>
+    </section>
+
+    <pre id="debug"></pre>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

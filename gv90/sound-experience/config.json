@@ -1,0 +1,267 @@
+{
+  "$comment": "GV90 SOUND EXPERIENCE — 카피·타이밍·좌표를 여기서 수정한다. 코드 수정 불필요.",
+  "stage": {
+    "width": 1920,
+    "height": 1080
+  },
+  "kiosk": {
+    "idleMs": 60000,
+    "autoLoop": true
+  },
+  "audio": {
+    "$comment": "stems 는 실제 음원 경로. 파일이 없으면 실시간 합성음으로 재생된다.",
+    "master": 0.9,
+    "stems": {
+      "city": "assets/audio/city-noise.mp3",
+      "atmos": "assets/audio/atmos-demo.mp3"
+    }
+  },
+  "chrome": {
+    "left": "GENESIS GV90",
+    "right": "SOUND EXPERIENCE",
+    "segments": [
+      { "id": "clear", "label": "CLEAR · 지우다" },
+      { "id": "fill", "label": "FILL · 채우다" },
+      { "id": "expand", "label": "EXPAND · 넓히다" },
+      { "id": "outro", "label": "EXPERIENCE · 경험하다" }
+    ]
+  },
+  "copy": {
+    "intro": {
+      "headline": "보이지 않는 소리를, 눈으로 경험하다",
+      "sub": "SEE THE SOUND",
+      "cta": "TOUCH",
+      "hint": "화면을 터치하면, 소음이 사라집니다"
+    },
+    "clear": {
+      "eyebrow": "CLEAR THE NOISE",
+      "title": "소리를 지우다",
+      "stages": [
+        {
+          "id": "noise",
+          "label": "NOISE",
+          "line": "소음을 줄이고",
+          "items": [
+            "WIND NOISE",
+            "ROAD NOISE",
+            "TRAFFIC NOISE"
+          ]
+        },
+        {
+          "id": "vibration",
+          "label": "VIBRATION",
+          "line": "진동을 억제하고",
+          "items": []
+        },
+        {
+          "id": "harshness",
+          "label": "HARSHNESS",
+          "line": "불쾌한 감각을 최소화합니다",
+          "items": []
+        }
+      ]
+    },
+    "fill": {
+      "eyebrow": "FILL THE SPACE",
+      "title": "소리를 채우다",
+      "counterUnit": "SPEAKERS",
+      "statement": {
+        "headline": "25개의 스피커가 공간을 채웁니다",
+        "accent": "BANG & OLUFSEN · 7.1.4 CHANNEL",
+        "sub": "A SOUND SPACE, BUILT AROUND YOU"
+      },
+      "featuresTitle": "BANG & OLUFSEN",
+      "features": [
+        {
+          "tag": "ALT (Acoustic Lens Technology)",
+          "title": "어쿠스틱 렌즈 기술(ALT)\n스피커 탑재",
+          "body": "운전석과 동승석을 가리지 않고\n향상된 공간감과 더욱 생생한 사운드를\n즐길 수 있습니다.",
+          "image": "assets/img/feature-1.jpg"
+        },
+        {
+          "tag": "Beosonic 2.0 · Pinch & Zoom",
+          "title": "완전히 맞춤화된\n차량용 오디오 경험",
+          "body": "베오소닉 2.0은 차량 내 소리를\n사용자 중심으로 조화롭게 구성하도록\n설계되었습니다.",
+          "image": "assets/img/feature-2.jpg"
+        },
+        {
+          "tag": "Virtual Venues Live",
+          "title": "차 안에서 즐기는\n가상 공연장",
+          "body": "세계 유명 공연장과 공간의 음향 특성을\n측정한 뒤, 이를 알고리즘으로 차량 내에\n재현합니다.",
+          "image": "assets/img/feature-3.jpg"
+        }
+      ]
+    },
+    "expand": {
+      "eyebrow": "EXPAND THE SOUND",
+      "title": "소리를 확장하다",
+      "cta": "TOUCH",
+      "hint": "화면을 터치하면, 소리가 공간으로 퍼집니다",
+      "axes": [
+        { "en": "LEFT — RIGHT", "ko": "좌우로 흐르고" },
+        { "en": "FRONT — BACK", "ko": "앞뒤로 이동하고" },
+        { "en": "BELOW — ABOVE", "ko": "머리 위로 올라갑니다" }
+      ],
+      "statement": {
+        "headline": "소리를 듣는 것이 아니라, 소리 안에 머무는 경험",
+        "sub": "DOLBY ATMOS · 소리 하나하나에 좌표가 있습니다"
+      },
+      "apps": {
+        "headline": "늘 듣던 그 앱 그대로, 돌비 애트모스로",
+        "accent": "GV90 최초 적용",
+        "sub": "돌비 애트모스를 지원하는 CarPlay가 GV90부터 적용됩니다",
+        "items": [
+          "Apple Music",
+          "Spotify",
+          "genie",
+          "FLO",
+          "NETFLIX",
+          "Apple TV",
+          "Disney+"
+        ],
+        "image": "assets/img/apps.png"
+      }
+    },
+    "outro": {
+      "headline": "이제 직접 들어보실 차례입니다",
+      "accent": "SOUND CHAMBER에서 직접 경험해보세요",
+      "sub": "← 좌측 SOUND CHAMBER"
+    }
+  },
+  "steps": [
+    {
+      "id": "intro",
+      "segment": null,
+      "beats": [
+        {
+          "id": "attract",
+          "ms": null,
+          "gate": true
+        }
+      ]
+    },
+    {
+      "id": "clear",
+      "segment": "clear",
+      "beats": [
+        {
+          "id": "title",
+          "ms": 4500
+        },
+        {
+          "id": "noise",
+          "ms": 8500
+        },
+        {
+          "id": "vibration",
+          "ms": 8500
+        },
+        {
+          "id": "harshness",
+          "ms": 8500
+        }
+      ]
+    },
+    {
+      "id": "fill",
+      "segment": "fill",
+      "beats": [
+        {
+          "id": "map",
+          "ms": 18000
+        },
+        {
+          "id": "statement",
+          "ms": 5000
+        },
+        {
+          "id": "features",
+          "ms": 7000
+        }
+      ]
+    },
+    {
+      "id": "expand",
+      "segment": "expand",
+      "beats": [
+        {
+          "id": "ripple",
+          "ms": 14000,
+          "gate": true
+        },
+        {
+          "id": "dome",
+          "ms": 13000
+        },
+        {
+          "id": "apps",
+          "ms": 8000
+        }
+      ]
+    },
+    {
+      "id": "outro",
+      "segment": "outro",
+      "beats": [
+        {
+          "id": "outro",
+          "ms": 12000
+        }
+      ]
+    }
+  ],
+  "speakerPlate": {
+    "$comment": "car-top.png 이미지가 놓이는 스테이지 좌표 (1920x1080 기준)",
+    "x": 360,
+    "y": 332,
+    "w": 1200,
+    "h": 547
+  },
+  "speakers": [
+    { "x": 0.228, "y": 0.3832, "height": 0 },
+    { "x": 0.2281, "y": 0.6191, "height": 0 },
+    { "x": 0.2434, "y": 0.223, "height": 0 },
+    { "x": 0.2435, "y": 0.7794, "height": 0 },
+    { "x": 0.3114, "y": 0.1562, "height": 1 },
+    { "x": 0.3114, "y": 0.8459, "height": 1 },
+    { "x": 0.4585, "y": 0.7954, "height": 0 },
+    { "x": 0.4587, "y": 0.206, "height": 0 },
+    { "x": 0.5722, "y": 0.1569, "height": 1 },
+    { "x": 0.5724, "y": 0.8463, "height": 1 },
+    { "x": 0.6314, "y": 0.7997, "height": 0 },
+    { "x": 0.6316, "y": 0.2023, "height": 0 },
+    { "x": 0.674, "y": 0.7671, "height": 0 },
+    { "x": 0.6742, "y": 0.2346, "height": 0 },
+    { "x": 0.7166, "y": 0.2139, "height": 0 },
+    { "x": 0.7167, "y": 0.7886, "height": 0 },
+    { "x": 0.747, "y": 0.1569, "height": 1 },
+    { "x": 0.7472, "y": 0.8466, "height": 1 },
+    { "x": 0.8319, "y": 0.7791, "height": 0 },
+    { "x": 0.832, "y": 0.2227, "height": 0 },
+    { "x": 0.8727, "y": 0.4339, "height": 0 },
+    { "x": 0.873, "y": 0.5679, "height": 0 },
+    { "x": 0.9031, "y": 0.3161, "height": 0 },
+    { "x": 0.9033, "y": 0.6862, "height": 0 },
+    { "x": 0.9338, "y": 0.5009, "height": 0 }
+  ],
+  "carRig": {
+    "$comment": "CLEAR 주행 연출. 좌표는 차폐 프레임 기준 스테이지 px. 차량 이미지를 교체하면 여기도 함께 맞춘다.",
+    "frame": {
+      "x": 432,
+      "y": 324,
+      "w": 1056,
+      "h": 470
+    },
+    "car": {
+      "x": 73,
+      "y": 57,
+      "w": 910
+    },
+    "groundY": 368,
+    "spinMs": 750,
+    "wheels": [
+      { "id": "wheel-front", "x": 214, "y": 316, "r": 48 },
+      { "id": "wheel-rear", "x": 793, "y": 325, "r": 49 }
+    ]
+  }
+}

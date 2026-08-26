@@ -1,0 +1,146 @@
+{
+  "$comment": "GV90 SIESTA — 카피·무드·하드웨어 동작을 여기서 수정한다. 코드 수정 불필요.",
+  "stage": {
+    "width": 1920,
+    "height": 1080
+  },
+  "kiosk": {
+    "idleMs": 120000
+  },
+  "runMs": 22000,
+  "$runMs": "구동 중 화면을 보여주는 시간(ms). 제안서의 02:30~04:09 는 음원 길이이고, 음원은 선택 화면으로 돌아온 뒤에도 계속 흐른다. 화면 대기 시간은 조명 페이드와 커튼 이동이 끝나 관람객이 공간 변화를 확인하기에 충분하도록 잡았다.",
+  "chrome": {
+    "left": "GENESIS GV90",
+    "right": "SIESTA"
+  },
+  "introVariant": 1,
+  "$introVariant": "제안서의 인트로 카피 1안/2안 중 무엇을 쓸지 (1 또는 2)",
+  "copy": {
+    "intro": [
+      {
+        "headline": "기분 전환이 필요한 순간,\nGV90가 제안하는 무드로 당신의 기분을 채워보세요",
+        "sub": "ATTUNE YOURSELF TO THE PERFECT MOOD PROPOSED BY GV90"
+      },
+      {
+        "headline": "지금 당신의 마음에 맞춰 세심하게 조율된,\nGV90의 무드를 경험해보세요",
+        "sub": "EXPERIENCE A SPACE FINELY ATTUNED TO YOUR EMOTIONAL STATE BY GV90"
+      }
+    ],
+    "introCta": "TOUCH",
+    "introHint": "화면을 터치하여 시작하세요",
+    "runningEyebrow": "GETTING YOUR ROUTINE READY"
+  },
+  "idleRoom": {
+    "$comment": "대기 상태. 제안서 48p 의 '조명(기본 조명 색상) / 커튼 개방 / 음원 없음'. 기본 조명 색상은 확정 필요.",
+    "light": {
+      "color": "#F2E3CC",
+      "dimmer": 0.55
+    },
+    "curtain": "open",
+    "audio": null
+  },
+  "hardware": {
+    "$comment": "장비와 실제로 말하는 방법은 bridge/config.json 에 있다. 여기는 '무엇을 시킬지'만 담는다.",
+    "bridge": {
+      "url": "ws://127.0.0.1:8090",
+      "reconnectMs": 3000
+    },
+    "dmx": {
+      "fadeMs": 2500
+    },
+    "curtain": {
+      "travelMs": 14000
+    },
+    "audio": {
+      "fadeInMs": 1800,
+      "fadeOutMs": 2200,
+      "volume": 0.85
+    }
+  },
+  "modes": [
+    {
+      "id": "delight",
+      "title": "DELIGHT MODE",
+      "ko": "활기찬 무드",
+      "family": "EMOTIONAL CARE",
+      "card": "밝은 분위기로 기분과 컨디션을 리프레시",
+      "running": "밝은 에너지로 지친 감각을 깨워주는 리프레시 케어",
+      "colorName": "토파즈 옐로우",
+      "color": "#FCC77B",
+      "room": {
+        "light": {
+          "color": "#FCC77B",
+          "dimmer": 0.88
+        },
+        "curtain": "open",
+        "audio": {
+          "src": "assets/audio/delight.mp3",
+          "label": "03:07"
+        }
+      }
+    },
+    {
+      "id": "calming",
+      "title": "CALMING MODE",
+      "ko": "평온한 무드",
+      "family": "EMOTIONAL CARE",
+      "card": "생각과 감정을 조용히 비워내는 마음 중심의 케어",
+      "running": "고요함 속에서 온전히 마음을 비워내는 마인드 케어",
+      "colorName": "에미시스트 퍼플",
+      "color": "#9B68CD",
+      "room": {
+        "light": {
+          "color": "#9B68CD",
+          "dimmer": 0.62
+        },
+        "curtain": "close",
+        "audio": {
+          "src": "assets/audio/calming.mp3",
+          "label": "03:10"
+        }
+      }
+    },
+    {
+      "id": "cozy",
+      "title": "COZY MODE",
+      "ko": "아늑한 무드",
+      "family": "EMOTIONAL CARE",
+      "card": "하루의 긴장을 부드럽게 풀어주는 신체 중심의 케어",
+      "running": "아늑함 속에서 지친 신체의 균형을 되찾는 바디 케어",
+      "colorName": "에메랄드 블루그린",
+      "color": "#44ACB1",
+      "room": {
+        "light": {
+          "color": "#44ACB1",
+          "dimmer": 0.7
+        },
+        "curtain": "close",
+        "audio": {
+          "src": "assets/audio/cozy.mp3",
+          "label": "04:09"
+        }
+      }
+    },
+    {
+      "id": "siesta",
+      "title": "SIESTA",
+      "ko": "수면 무드",
+      "family": "SIESTA",
+      "card": "주행 후 깊은 쉼을 위한 순간",
+      "running": "온전함 쉼을 위해 모든 감각을 설계한 프라이빗 공간",
+      "colorName": "조명 꺼짐",
+      "color": "#A8A8A8",
+      "room": {
+        "light": {
+          "color": "#000000",
+          "dimmer": 0.0
+        },
+        "curtain": "close",
+        "audio": {
+          "src": "assets/audio/siesta.mp3",
+          "label": "02:30"
+        }
+      }
+    }
+  ]
+}
