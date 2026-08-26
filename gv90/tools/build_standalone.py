@@ -12,8 +12,12 @@ CSS · ES 모듈 · config.json · 이미지를 전부 한 파일 안에 넣어,
 문서 뼈대를 직접 감싸는 호스트(웹 공유 페이지, iframe 임베드)에 넣을 때 쓴다.
 
 ES 모듈은 상대 경로 import 를 그대로 둔 채로는 인라인할 수 없다.
-각 모듈을 data: URL 로 만들고 import 지정자를 임포트맵의 이름으로 바꿔
-모듈 구조를 그대로 유지한 채 한 파일에 담는다.
+import/export 구문을 걷어내고 의존 순서대로 이어 붙여 하나의 인라인
+모듈 스크립트로 만든다.
+
+data: URL 과 임포트맵을 쓰지 않는 이유: 배포본을 엄격한 CSP 아래
+(아티팩트·사내 포털 등) 올리면 script-src 가 data: 스킴을 거부해
+아무것도 실행되지 않는다. 인라인 스크립트는 어디서나 통한다.
 """
 import base64
 import json
@@ -44,8 +48,30 @@ def data_uri(path: pathlib.Path) -> str:
     return f"data:{mime};base64,{base64.b64encode(path.read_bytes()).decode()}"
 
 
-def js_data_uri(source: str) -> str:
-    return "data:text/javascript;base64," + base64.b64encode(source.encode()).decode()
+# import 구문 (여러 줄 허용) 과 선언 앞의 export 키워드
+IMPORT_RE = re.compile(r"^\s*import\s+[\s\S]*?from\s+['\"][^'\"]+['\"]\s*;?[ \t]*\n", re.M)
+EXPORT_RE = re.compile(r"^(\s*)export\s+(?=(?:const|let|var|function|class|async)\b)", re.M)
+DECL_RE = re.compile(r"^(?:export\s+)?(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)", re.M)
+
+
+def bundle_modules(paths):
+    """모듈들을 하나의 인라인 모듈 스크립트로 합친다.
+
+    모두 같은 스코프에 놓이므로 최상위 이름이 겹치면 조용히 덮어써진다.
+    빌드 시점에 검사해서 겹치면 즉시 실패시킨다.
+    """
+    seen = {}
+    chunks = []
+    for path in paths:
+        source = path.read_text()
+        for name in DECL_RE.findall(source):
+            if name in seen:
+                sys.exit(f"이름 충돌: '{name}' 이 {seen[name]} 와 {path.name} 에 함께 있습니다. "
+                         f"한쪽 이름을 바꿔야 배포본이 정상 동작합니다.")
+            seen[name] = path.name
+        source = EXPORT_RE.sub(r"\1", IMPORT_RE.sub("", source))
+        chunks.append(f"/* ==== {path.name} ==== */\n{source.strip()}\n")
+    return "\n".join(chunks)
 
 
 ASSET_RE = re.compile(r"^assets/.+\.(?:png|jpe?g|svg|webp|mp3|wav|ogg|m4a)$", re.I)
@@ -97,18 +123,8 @@ def main() -> None:
         styles.append(css)
     html = re.sub(r'\s*<link rel="stylesheet" href="[^"]+">', "", html)
 
-    # --- 모듈: import 지정자를 임포트맵 이름으로 바꾸고 data URL 로 -------------
-    names = {pathlib.Path(m.format(content=content)).name: "gv90/" + pathlib.Path(m).stem
-             for m in MODULES}
-    imports = {}
-    for rel in MODULES:
-        path = ROOT / rel.format(content=content)
-        source = re.sub(
-            r"""(from\s+)(['"])([^'"]+?)\2""",
-            lambda m: f"{m.group(1)}'{names.get(pathlib.Path(m.group(3)).name, m.group(3))}'",
-            path.read_text(),
-        )
-        imports[names[path.name]] = js_data_uri(source)
+    # --- 모듈: 의존 순서대로 이어 붙여 하나의 인라인 스크립트로 -----------------
+    script = bundle_modules([ROOT / m.format(content=content) for m in MODULES])
 
     # --- 이미지: src 속성을 data URI 로 -----------------------------------------
     html = re.sub(
@@ -118,12 +134,10 @@ def main() -> None:
     )
 
     # --- 스크립트 태그 교체 -------------------------------------------------------
-    entry = names["main.js"]
     bundle = (
         f"<style>\n{chr(10).join(styles)}\n</style>\n"
         f'<script>window.__GV90_CONFIG__ = {json.dumps(config, ensure_ascii=False)};</script>\n'
-        f'<script type="importmap">{json.dumps({"imports": imports})}</script>\n'
-        f'<script type="module">import "{entry}";</script>'
+        f'<script type="module">\n{script}\n</script>'
     )
     # 치환문을 람다로 넘긴다. 문자열로 넘기면 config 안의 \n 이 이스케이프로
     # 해석돼 인라인 JS 가 깨진다.
