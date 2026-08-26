@@ -34,6 +34,7 @@ MODULES = [
     "{content}/js/viz/wavefield.js",
     "{content}/js/viz/speakers.js",
     "{content}/js/viz/dome.js",
+    "{content}/js/viz/roadmotion.js",
     "{content}/js/main.js",
 ]
 

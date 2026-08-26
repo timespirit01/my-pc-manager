@@ -14,6 +14,7 @@ import { Kiosk } from '../../shared/js/kiosk.js';
 import { WaveField } from './viz/wavefield.js';
 import { SpeakerMap } from './viz/speakers.js';
 import { SoundDome } from './viz/dome.js';
+import { RoadMotion } from './viz/roadmotion.js';
 import { $, $$, el, clamp, norm, easeOut } from '../../shared/js/util.js';
 
 /* --------------------------------------------------------------------------
@@ -128,6 +129,27 @@ const speakerMap = new SpeakerMap($('#cv-fill'), CONFIG.speakers, {
 
 const dome = new SoundDome($('#cv-expand'), { cx: 960, cy: 660, radius: 540 });
 
+// --- CLEAR 주행 연출 --------------------------------------------------------
+// 휠 조각을 설정 좌표에 앉히고, 노면·배경 흐름을 그릴 캔버스를 세운다.
+const RIG = CONFIG.carRig;
+RIG.wheels.forEach((w) => {
+  const node = document.getElementById(w.id);
+  if (!node) return;
+  Object.assign(node.style, {
+    left: `${w.x - w.r}px`,
+    top: `${w.y - w.r}px`,
+    width: `${w.r * 2}px`,
+    height: `${w.r * 2}px`,
+  });
+});
+$('#car-rig').style.setProperty('--spin', `${RIG.spinMs}ms`);
+
+const road = new RoadMotion($('#cv-road'), {
+  width: RIG.frame.w,
+  height: RIG.frame.h,
+  groundY: RIG.groundY,
+});
+
 /* --------------------------------------------------------------------------
    시퀀서
    -------------------------------------------------------------------------- */
@@ -198,6 +220,7 @@ function onBeatEnter(stepId, beatId) {
       break;
 
     case 'clear.title':
+      startDriving();
       audio.startNoiseBed();
       audio.setNoiseReduction(0);
       clearWave.setMode('noise');
@@ -217,6 +240,7 @@ function onBeatEnter(stepId, beatId) {
     }
 
     case 'fill.map':
+      stopDriving();
       audio.stopNoiseBed(1.4);
       countEl.textContent = '0';
       speakerMap.reset();
@@ -254,6 +278,19 @@ function onBeatEnter(stepId, beatId) {
       audio.reset();
       break;
   }
+}
+
+/** 주행 시작 — 휠 회전·상하동(CSS)과 노면 흐름(캔버스)을 함께 켠다 */
+function startDriving() {
+  sceneOf.clear.classList.add('is-driving');
+  road.setSpeed(1);
+  road.setIntensity(1);
+}
+
+function stopDriving() {
+  sceneOf.clear.classList.remove('is-driving');
+  road.setSpeed(0);
+  road.setIntensity(0);
 }
 
 /** CLEAR 의 WIND/ROAD/TRAFFIC NOISE 항목을 순차 등장시킨다 */
@@ -299,6 +336,7 @@ function onFrame(dt, s) {
       clearWave.setReduction(red);
       audio.setNoiseReduction(red);
       clearWave.render(dt);
+      road.render(dt);
       break;
     }
 
@@ -361,6 +399,7 @@ function updateProgress() {
 }
 
 function resetAll() {
+  stopDriving();
   audio.reset();
   speakerMap.reset();
   dome.setIntensity(0);

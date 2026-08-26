@@ -47,6 +47,14 @@ MASKS = {
     },
 }
 
+# CLEAR 구간의 주행 연출용 휠. 측면 렌더는 정지 이미지라 휠이 돌지 않으므로,
+# 림(rim)만 원형으로 떼어내 같은 자리에 겹쳐 놓고 CSS 로 회전시킨다.
+# 좌표는 car-side.png 원본 픽셀 기준 (중심 x, 중심 y, 반지름).
+WHEELS = [
+    ("wheel-front.png", 147, 270, 50),
+    ("wheel-rear.png", 750, 279, 51),
+]
+
 # 크롭 경계가 검은 배경 위에서 사각형으로 드러나지 않도록 가장자리를 흐릴 이미지 (페더 폭 px)
 FEATHER = {
     "car-side.png": 46,
@@ -82,6 +90,26 @@ def main() -> None:
         else:
             img.save(target)
         print(f"{target.relative_to(root)}  {img.width}x{img.height}")
+
+    extract_wheels(out_dir, root)
+
+
+def extract_wheels(out_dir, root) -> None:
+    """차량 측면 렌더에서 림만 원형으로 떼어낸다 (주행 회전용)."""
+    src = out_dir / "car-side.png"
+    if not src.exists():
+        return
+    car = Image.open(src).convert("RGBA")
+    for name, cx, cy, r in WHEELS:
+        disc = car.crop((cx - r, cy - r, cx + r, cy + r))
+        mask = Image.new("L", disc.size, 0)
+        ImageDraw.Draw(mask).ellipse([0, 0, disc.width - 1, disc.height - 1], fill=255)
+        # 회전하는 림과 고정된 타이어의 경계가 드러나지 않게 살짝 흐린다
+        mask = mask.filter(ImageFilter.GaussianBlur(2.5))
+        disc.putalpha(mask)
+        target = out_dir / name
+        disc.save(target)
+        print(f"{target.relative_to(root)}  {disc.width}x{disc.height}  중심({cx},{cy}) r={r}")
 
 
 def apply_copy_mask(img, spec):

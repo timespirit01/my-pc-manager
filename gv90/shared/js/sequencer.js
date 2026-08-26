@@ -119,15 +119,21 @@ export class Sequencer {
     return Math.min(this.beatElapsed / b.ms, 1);
   }
 
-  /** 현재 단락의 진행도 0..1 */
+  /**
+   * 현재 단락의 진행도 0..1
+   *
+   * 관람객 터치를 기다리는 비트는 계산에서 통째로 뺀다. 대기 시간은 관람객이
+   * 정하는 것이라 진행바가 그동안 움직이면 "곧 넘어간다"는 잘못된 신호를 준다.
+   * 터치해서 다음 비트로 넘어간 순간부터 바가 움직이기 시작한다.
+   */
   stepProgress() {
     const s = this.step;
     if (!s) return 0;
-    const total = s.beats.reduce((n, b) => n + (Number.isFinite(b.ms) ? b.ms : 0), 0);
+    const span = (b) => (b.gate || !Number.isFinite(b.ms) ? 0 : b.ms);
+    const total = s.beats.reduce((n, b) => n + span(b), 0);
     if (total <= 0) return 0;
-    const before = s.beats
-      .slice(0, this.beatIndex)
-      .reduce((n, b) => n + (Number.isFinite(b.ms) ? b.ms : 0), 0);
-    return Math.min((before + this.beatElapsed) / total, 1);
+    const before = s.beats.slice(0, this.beatIndex).reduce((n, b) => n + span(b), 0);
+    const current = this.beat && this.beat.gate ? 0 : this.beatElapsed;
+    return Math.min((before + current) / total, 1);
   }
 }

@@ -58,7 +58,14 @@
           <rect class="shield-run"  x="3" y="3" width="974" height="494" rx="58"
                 filter="url(#shieldGlow)"></rect>
         </svg>
-        <img class="car-side" src="assets/img/car-side.png" alt="">
+        <canvas class="road" id="cv-road"></canvas>
+
+        <!-- 차량 리그: 차체와 휠을 함께 상하동시키고, 휠만 따로 회전시킨다 -->
+        <div class="car-rig" id="car-rig">
+          <img class="car-side" src="assets/img/car-side.png" alt="">
+          <img class="wheel" id="wheel-front" src="assets/img/wheel-front.png" alt="">
+          <img class="wheel" id="wheel-rear" src="assets/img/wheel-rear.png" alt="">
+        </div>
       </div>
 
       <div class="beat is-active" data-beat="clear.title">

@@ -213,12 +213,53 @@
   /* 둘레를 도는 빛 — stroke-dashoffset 은 JS 에서 애니메이션 */
   stroke-dasharray: 620 2280;
 }
+/* --- 주행 연출 -------------------------------------------------------------
+   측면 렌더는 정지 이미지다. 림만 따로 떼어낸 조각을 같은 자리에 겹쳐
+   회전시키고, 차체와 휠을 함께 담은 리그를 상하동시켜 주행감을 만든다.
+   차량은 화면 왼쪽을 향해 달리므로 휠은 반시계 방향으로 돈다.          */
+
+.clear-frame .road {
+  position: absolute;
+  inset: 0;
+  width: 1056px;
+  height: 470px;
+}
+
+.car-rig {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
 .clear-frame .car-side {
   position: absolute;
   left: 73px;
   top: 57px;
   width: 910px;
   height: auto;
+}
+/* 위치·크기는 config.carRig 값으로 main.js 가 넣는다 */
+.clear-frame .wheel {
+  position: absolute;
+  will-change: transform;
+}
+
+/* 주행 시작 — CLEAR 씬이 활성일 때만 돈다 */
+#scene-clear.is-driving .car-rig { animation: car-bob 900ms ease-in-out infinite; }
+#scene-clear.is-driving .wheel { animation: wheel-spin var(--spin, 750ms) linear infinite; }
+
+@keyframes wheel-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }   /* 좌측 주행 = 반시계 */
+}
+
+@keyframes car-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-1.6px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #scene-clear.is-driving .car-rig,
+  #scene-clear.is-driving .wheel { animation: none; }
 }
 
 .noise-list {
