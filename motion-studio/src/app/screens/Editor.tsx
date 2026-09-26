@@ -106,21 +106,25 @@ export function Editor({ initial, onExit }: { initial: Project; onExit: () => vo
   }, [hist, doSave, project]);
 
   // ---------- 검증/자동화용 훅 ----------
+  const renderProjectFrame = useCallback(async (p: Project, t: number, width: number) => {
+    await images.ensure(p);
+    const c = document.createElement('canvas');
+    c.width = width;
+    c.height = Math.round((width * 1080) / 1920);
+    renderer.renderFrame(c.getContext('2d')!, p, t, images.get, width / 1920);
+    return c.toDataURL('image/png');
+  }, [renderer, images]);
+
   useEffect(() => {
     (window as unknown as Record<string, unknown>).__studio = {
       project,
       timeline,
       reports,
-      renderFrameDataURL: async (t: number, width = 1920) => {
-        await images.ensure(project);
-        const c = document.createElement('canvas');
-        c.width = width;
-        c.height = Math.round((width * 1080) / 1920);
-        renderer.renderFrame(c.getContext('2d')!, project, t, images.get, width / 1920);
-        return c.toDataURL('image/png');
-      },
+      renderFrameDataURL: (t: number, width = 1920) => renderProjectFrame(project, t, width),
+      /** 임의의 프로젝트(예: 수정 전 상태)를 같은 렌더러로 그린다 — 변경 반영 여부 비교용 */
+      renderProjectFrame: (p: Project, t: number, width = 1920) => renderProjectFrame(p, t, width),
     };
-  }, [project, timeline, reports, renderer, images]);
+  }, [project, timeline, reports, renderProjectFrame]);
 
   const sceneLabels = project.scenes.map((s) => KIND_LABEL[s.kind]);
   const scene = project.scenes[sel];

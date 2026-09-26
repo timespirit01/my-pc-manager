@@ -94,6 +94,8 @@ export async function exportMp4(
       batch = [];
       await inflight;
       inflight = post(`/api/renders/${jobId}/frames?start=${start}`, body, 'application/octet-stream');
+      // 다음 묶음을 그리는 동안 실패해도 '처리되지 않은 오류'가 되지 않게 표시(실제 오류는 다음 await에서 던져진다)
+      inflight.catch(() => undefined);
     };
 
     for (let i = 0; i < total; i++) {

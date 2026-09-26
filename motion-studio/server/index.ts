@@ -80,7 +80,7 @@ app.post('/api/assets', express.raw({ type: 'image/*', limit: '30mb' }), (req: R
   const id = `a_${randomUUID().replace(/-/g, '').slice(0, 16)}`;
   const file = `${id}.${ext}`;
   writeFileSync(join(DIRS.assets, file), req.body);
-  res.json({ id, url: `/assets/${file}` });
+  res.json({ id, url: `/uploads/${file}` });
 });
 
 // ---------- MP4 렌더링 ----------
@@ -145,7 +145,7 @@ app.delete('/api/renders/:id', (req, res) => {
 });
 
 // ---------- 정적 파일 ----------
-app.use('/assets', express.static(DIRS.assets, { maxAge: '7d', immutable: true }));
+app.use('/uploads', express.static(DIRS.assets, { maxAge: '7d', immutable: true }));
 app.use('/exports', express.static(DIRS.exports, {
   setHeaders: (res) => res.setHeader('Content-Disposition', 'attachment'),
 }));

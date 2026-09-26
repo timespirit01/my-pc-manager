@@ -39,7 +39,7 @@ function introLayout(env: RenderEnv, scene: Scene): BoldLayout {
     const title = fit(env, scene.title, { family: SANS, weight: 900, sizes: [128, 112, 100], lineHeight: 1.12, letterSpacing: -0.035, maxWidth: textW, maxLines: 3, balance: true });
     const body = fit(env, scene.body, { family: SANS, weight: 500, sizes: [44, 40], lineHeight: 1.45, letterSpacing: -0.01, maxWidth: Math.min(textW, 900), maxLines: 3 });
     const groupH = 10 + 44 + title.height + (body.lines.length ? GAP_TITLE_BODY + body.height : 0);
-    const minTop = MY + 64 + 48;
+    const minTop = MY + 88 + 40;
     const top = Math.max(minTop, (H - groupH) / 2 + 20);
     const layout: BoldLayout = {
       report: { overflow: [...(title.overflow ? ['title'] : []), ...(body.overflow ? ['body'] : [])], variant: hasImg ? `split-${f}` : 'text', imageAspect: hasImg ? imgW / (H - 2 * MY) : undefined },
@@ -70,7 +70,7 @@ function featureLayout(env: RenderEnv, scene: Scene, index: number): BoldLayout 
     const imgW = Math.round(imgW0);
     const textW = ar ? CW - imgW - 112 : 1300;
     const title = fit(env, scene.title, { family: SANS, weight: 800, sizes: [80, 72, 64], lineHeight: 1.2, letterSpacing: -0.025, maxWidth: textW, maxLines: 3, balance: true });
-    const body = fit(env, scene.body, { family: SANS, weight: 400, sizes: [42, 38], lineHeight: 1.58, letterSpacing: -0.01, maxWidth: Math.min(textW, 820), maxLines: 6 });
+    const body = fit(env, scene.body, { family: SANS, weight: 400, sizes: [42, 38], lineHeight: 1.58, letterSpacing: -0.01, maxWidth: Math.min(textW, 820), maxLines: 4 });
     const groupH = label.height + 32 + title.height + (body.lines.length ? GAP_TITLE_BODY + body.height : 0);
     const layout: BoldLayout = {
       report: { overflow: [...(title.overflow ? ['title'] : []), ...(body.overflow ? ['body'] : [])], variant: ar ? `split-${Math.round(imgW)}` : 'text', imageAspect: ar ? imgW / CH : undefined },
@@ -108,7 +108,7 @@ function ctaLayout(env: RenderEnv, scene: Scene): BoldLayout {
   const btnH = button.lines.length ? button.height + 64 : 0;
   const btnW = button.width + 128;
   const groupH = title.height + (body.lines.length ? 32 + body.height : 0) + (btnH ? 64 + btnH : 0);
-  const areaBottom = H - MY - 96;
+  const areaBottom = H - MY - 110;
   const top = Math.max(MY, (areaBottom + MY) / 2 - groupH / 2 + 20);
   return {
     report: { overflow: [...(title.overflow ? ['title'] : []), ...(body.overflow ? ['body'] : []), ...(button.overflow ? ['button'] : [])], variant: 'center' },
@@ -150,7 +150,7 @@ export const boldTemplate: Template = {
       text: '#FFFFFF',
       subtext: mix('#FFFFFF', bg, 0.28),
       primary: colors.primary,
-      onPrimary: onColor(colors.primary),
+      onPrimary: onColor(colors.primary, undefined, undefined, true),
       accent: colors.accent,
       onAccent: onColor(colors.accent),
       primaryOnBg: ensureContrast(colors.primary, bg, 3),
@@ -199,7 +199,7 @@ export const boldTemplate: Template = {
     // 로고/브랜드명 (도입 장면 상단)
     if (scene.kind === 'intro') {
       withEnter(ctx, st(0, 'none'), 0, 0, () =>
-        drawBrandMark(env, { x: format.marginX, y: format.marginY, w: 320, h: 64 }, 'left', pal.text, { family: SANS, weight: 800, size: 30 }),
+        drawBrandMark(env, { x: format.marginX, y: format.marginY - 12, w: 420, h: 88 }, 'left', pal.text, { family: SANS, weight: 800, size: 32 }),
       );
     }
 
@@ -287,7 +287,7 @@ export const boldTemplate: Template = {
     if (scene.kind === 'cta') {
       const s = st(3.5, 'up', 0.5);
       withEnter(ctx, s, format.width / 2, format.height - format.marginY - 32, () =>
-        drawBrandMark(env, { x: format.width / 2 - 200, y: format.height - format.marginY - 64, w: 400, h: 64 }, 'center', pal.onPrimary, { family: SANS, weight: 800, size: 32 }),
+        drawBrandMark(env, { x: format.width / 2 - 240, y: format.height - format.marginY - 84, w: 480, h: 96 }, 'center', pal.onPrimary, { family: SANS, weight: 800, size: 34 }),
       );
     }
 

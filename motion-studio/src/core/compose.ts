@@ -58,25 +58,52 @@ function pointToFields(point: string): { title: string; body: string } {
   return { title: one, body: '' };
 }
 
-/** 너무 긴 장면을 두 장면으로 나눈다. 나눌 수 없으면 null */
-export function splitScene(scene: Scene): [Scene, Scene] | null {
-  const sentences = splitSentences(scene.body);
+/** 글을 둘로 나누기: 문장 → 쉼표 등 구절 → 가운데 띄어쓰기 순으로 시도 */
+export function splitText(text: string): [string, string] | null {
+  const t = text.trim();
+  const sentences = splitSentences(t);
   if (sentences.length >= 2) {
     const half = Math.ceil(sentences.length / 2);
-    const first = sentences.slice(0, half).join(' ');
-    const rest = sentences.slice(half);
-    const second = rest.length >= 2 ? { title: rest[0], body: rest.slice(1).join(' ') } : { title: rest[0], body: '' };
+    return [sentences.slice(0, half).join(' '), sentences.slice(half).join(' ')];
+  }
+  const phrases = t.split(/(?<=[,，·])\s+/).filter(Boolean);
+  if (phrases.length >= 2) {
+    const half = Math.ceil(phrases.length / 2);
+    return [phrases.slice(0, half).join(' '), phrases.slice(half).join(' ')];
+  }
+  const words = t.split(/\s+/);
+  if (words.length >= 4) {
+    // 글자 수가 반반에 가까운 띄어쓰기 위치
+    let best = 1, bestDiff = Infinity;
+    for (let i = 1; i < words.length; i++) {
+      const diff = Math.abs(words.slice(0, i).join(' ').length - words.slice(i).join(' ').length);
+      if (diff < bestDiff) { bestDiff = diff; best = i; }
+    }
+    return [words.slice(0, best).join(' '), words.slice(best).join(' ')];
+  }
+  return null;
+}
+
+/** 너무 긴 장면을 두 장면으로 나눈다(글자를 줄이지 않고 장면을 늘린다). 나눌 수 없으면 null */
+export function splitScene(scene: Scene): [Scene, Scene] | null {
+  const nextKind = scene.kind === 'intro' || scene.kind === 'cta' ? 'feature' : scene.kind;
+  const nextCrop = { ...scene.crop, zoom: Math.min(2.5, scene.crop.zoom + 0.25) };
+  // 1) 설명이 길면 설명을 나눈다: 뒷부분의 첫 문장이 새 장면의 제목이 된다
+  const body = splitText(scene.body);
+  if (body && scene.body.length >= 24) {
+    const rest = splitSentences(body[1]);
+    const second = rest.length >= 2 ? { title: rest[0], body: rest.slice(1).join(' ') } : { title: body[1], body: '' };
     return [
-      { ...scene, body: first },
-      makeScene(scene.kind === 'intro' || scene.kind === 'cta' ? 'feature' : scene.kind, { ...second, imageId: scene.imageId, crop: { ...scene.crop, zoom: Math.min(2.5, scene.crop.zoom + 0.25) } }),
+      { ...scene, body: body[0] },
+      makeScene(nextKind, { ...second, imageId: scene.imageId, crop: nextCrop }),
     ];
   }
-  // 설명이 한 문장뿐이면 제목 쪽을 나눠 본다
-  const titleSentences = splitSentences(scene.title);
-  if (titleSentences.length >= 2) {
+  // 2) 제목이 길면 제목을 나눈다
+  const title = splitText(scene.title);
+  if (title) {
     return [
-      { ...scene, title: titleSentences[0] },
-      makeScene('feature', { title: titleSentences.slice(1).join(' '), body: scene.body, imageId: scene.imageId, crop: { ...scene.crop } }),
+      { ...scene, title: title[0] },
+      makeScene(nextKind, { title: title[1], body: '', imageId: scene.imageId, crop: nextCrop }),
     ];
   }
   return null;

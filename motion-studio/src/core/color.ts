@@ -38,8 +38,12 @@ export function contrast(a: string, b: string): number {
   return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
 }
 
-/** 배경 위에서 읽히는 글자색(흰색 또는 짙은 색) */
-export function onColor(bg: string, dark = '#111216', light = '#FFFFFF'): string {
+/**
+ * 배경 위에서 읽히는 글자색(흰색 또는 짙은 색).
+ * preferLight: 큰 글씨 기준 대비(WCAG AA Large 3:1)를 넘으면 흰 글씨를 우선한다(홍보 영상의 선명한 색 배경에 어울림)
+ */
+export function onColor(bg: string, dark = '#111216', light = '#FFFFFF', preferLight = false): string {
+  if (preferLight && contrast(bg, light) >= 3.1) return light;
   return contrast(bg, light) >= contrast(bg, dark) ? light : dark;
 }
 

@@ -124,7 +124,7 @@ export function drawBrandMark(
     const tone = project.logoId ? project.assets[project.logoId]?.tone : undefined;
     const bgIsDark = luminance(textColor) > 0.5; // 배경 위 글자색이 밝으면 배경은 어둡다
     const needsPlate = !!tone && (bgIsDark ? tone.dark > 0.15 : tone.light > 0.15);
-    const padX = needsPlate ? box.h * 0.32 : 0, padY = needsPlate ? box.h * 0.2 : 0;
+    const padX = needsPlate ? box.h * 0.24 : 0, padY = needsPlate ? box.h * 0.1 : 0;
     const scale = Math.min((box.w - padX * 2) / logo.width, (box.h - padY * 2) / logo.height);
     const w = logo.width * scale, h = logo.height * scale;
     const outerW = w + padX * 2;
