@@ -44,7 +44,9 @@ function paint(s) {
 // ── 카메라 이동 ───────────────────────────────────────
 let tween = null;
 const pov = { yaw: 0, pitch: 0, fov: 62 };
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 function flyTo(pos, look, fov, dur = 1400, done) {
+  if (reduceMotion) dur = 1;
   const q0 = camera.quaternion.clone(), p0 = camera.position.clone(), f0 = camera.fov;
   const m = new THREE.Matrix4().lookAt(pos, look, camera.up), q1 = new THREE.Quaternion().setFromRotationMatrix(m);
   const lift = Math.min(40, p0.distanceTo(pos) * 0.12);
@@ -60,11 +62,13 @@ function stepTween(now) {
   if (t >= 1) { const d = tween.done; tween = null; d && d(); }
 }
 
+function clearHover() { const o = state.hover; state.hover = null; if (o) paint(o); $('#tip').hidden = true; }
+function setHash(h) { history.replaceState(null, '', h || location.pathname + location.search); }
 function shell(on) { st.roof.visible = on; st.wall.visible = on; }
 
 function goOverview() {
   state.mode = 'overview'; const prev = state.section; state.section = null; state.seat = null; state.seatIdx = -1;
-  if (prev) paint(prev);
+  if (prev) paint(prev); clearHover(); setHash('');
   shell(false); st.labels.visible = true;
   flyTo(HOME_VIEW, orbit.target, 50, 1300, () => { orbit.enabled = true; });
   syncUI();
@@ -72,7 +76,7 @@ function goOverview() {
 
 function goSection(s) {
   const prev = state.section; state.mode = 'section'; state.section = s; state.seat = null; state.seatIdx = -1;
-  if (prev && prev !== s) paint(prev); state.hover = null; paint(s);
+  if (prev && prev !== s) paint(prev); clearHover(); paint(s); setHash('');
   shell(true); st.labels.visible = false;
   const pos = s.center.clone().addScaledVector(s.inward, 15 + s.rowCount * 0.8).add(new THREE.Vector3(0, 9 + s.rowCount * 0.3, 0));
   flyTo(pos, s.center, 50, 1300);
@@ -86,13 +90,13 @@ const LOOKS = {
 function seatEye(seat) { return new THREE.Vector3(seat.x, seat.y + 1.14, seat.z); }
 function goSeat(s, idx, lookKey = 'mound') {
   const prev = state.section; state.mode = 'seat'; state.section = s; state.seatIdx = idx; state.seat = s.seats[idx];
-  if (prev && prev !== s) paint(prev); state.hover = null; paint(s);
+  if (prev && prev !== s) paint(prev); clearHover(); paint(s);
   shell(true); st.labels.visible = false;
   const eye = seatEye(state.seat), look = LOOKS[lookKey];
   const dir = look.clone().sub(eye).normalize();
   pov.yaw = Math.atan2(-dir.x, -dir.z); pov.pitch = Math.asin(dir.y); pov.fov = 62;
   flyTo(eye, look, pov.fov, 1700);
-  location.hash = `seat=${encodeURIComponent(s.id)}/${state.seat.row}/${state.seat.num}`;
+  setHash(`#seat=${encodeURIComponent(s.id)}/${state.seat.row}/${state.seat.num}`);
   syncUI();
 }
 function lookAtKey(k) {
@@ -112,17 +116,18 @@ function pick(ev) {
   const r = canvas.getBoundingClientRect();
   ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ndc, camera);
-  const hits = ray.intersectObjects(sections.map((s) => s.mesh), false);
-  if (hits.length) return { s: hits[0].object.userData.section, idx: hits[0].instanceId };
-  const lh = st.labels.visible ? ray.intersectObjects(st.labels.children, false) : [];
-  return lh.length ? { s: lh[0].object.userData.section, idx: -1 } : null;
+  const objs = sections.map((s) => s.mesh); if (st.labels.visible) objs.push(...st.labels.children);
+  const h = ray.intersectObjects(objs, false)[0]; if (!h) return null;
+  return { s: h.object.userData.section, idx: h.object.isInstancedMesh ? h.instanceId : -1 };
 }
 const ptrs = new Map(); let down = null, pinch0 = 0;
 canvas.addEventListener('pointerdown', (e) => {
   ptrs.set(e.pointerId, e); down = { x: e.clientX, y: e.clientY, moved: false };
+  if (state.mode !== 'overview') canvas.setPointerCapture(e.pointerId);
   if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
 });
 canvas.addEventListener('pointermove', (e) => {
+  if (ptrs.has(e.pointerId) && e.pointerType === 'mouse' && e.buttons === 0) ptrs.delete(e.pointerId);
   if (ptrs.has(e.pointerId)) {
     const prev = ptrs.get(e.pointerId); ptrs.set(e.pointerId, e);
     if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6) down.moved = true;
@@ -154,8 +159,9 @@ const up = (e) => {
   else goSeat(h.s, h.idx);
 };
 canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+canvas.addEventListener('pointerleave', (e) => { if (!ptrs.has(e.pointerId)) clearHover(); });
 canvas.addEventListener('wheel', (e) => {
-  if (state.mode !== 'seat') return; e.preventDefault();
+  if (state.mode !== 'seat') return; e.preventDefault(); if (tween) return;
   pov.fov = THREE.MathUtils.clamp(pov.fov * (e.deltaY > 0 ? 1.08 : 0.92), 12, 80); applyPov();
 }, { passive: false });
 
@@ -169,7 +175,7 @@ function buildLegend() {
     const n = sections.filter((s) => s.grade === k).reduce((a, s) => a + s.seats.length, 0);
     const b = document.createElement('button'); b.className = 'grade' + (state.filter === k ? ' on' : '');
     b.innerHTML = `<i style="background:${g.color}"></i><span>${g.name}</span><em>${priceText(g)}</em>`;
-    b.title = `${n.toLocaleString()}석`;
+    b.title = `${n.toLocaleString()}석`; b.setAttribute('aria-pressed', state.filter === k);
     b.onclick = () => { state.filter = state.filter === k ? null : k; sections.forEach(paint); buildLegend(); };
     el.append(b);
   }
@@ -189,11 +195,11 @@ function syncPicker() {
   const rs = $('#selRow'), ns = $('#selNum');
   if (!s) { rs.innerHTML = ns.innerHTML = ''; rs.disabled = ns.disabled = true; return; }
   rs.disabled = ns.disabled = false;
-  const row = state.seat ? state.seat.row : +rs.value || rowsOf(s)[0];
+  const row = state.seat ? state.seat.row : rs.dataset.sec === s.id ? +rs.value : 0; rs.dataset.sec = s.id; if (!row) ns.innerHTML = '';
   const rows = rowsOf(s); const r = rows.includes(row) ? row : rows[0];
   fillSelect(rs, rows.map((x) => [x, `${x}열`]), r);
   const nums = s.seats.filter((x) => x.row === r).map((x) => x.num);
-  fillSelect(ns, nums.map((x) => [x, `${x}번`]), state.seat ? state.seat.num : Math.ceil(nums.length / 2));
+  fillSelect(ns, nums.map((x) => [x, `${x}번`]), state.seat ? state.seat.num : nums.includes(+ns.value) ? +ns.value : Math.ceil(nums.length / 2));
 }
 function syncUI() {
   document.body.dataset.mode = state.mode; $('#tip').hidden = true;
@@ -201,7 +207,7 @@ function syncUI() {
   syncPicker();
   if (!s) { card.hidden = true; $('#hint').textContent = '구역을 눌러 좌석을 선택하세요 · 드래그로 회전, 휠/핀치로 확대'; return; }
   card.hidden = false;
-  $('#cGrade').textContent = s.g.name; $('#cGrade').style.background = s.g.color;
+  $('#cGrade').textContent = s.g.name; $('#cGrade').style.setProperty('--g', s.g.color);
   $('#cTitle').textContent = `${s.id}구역` + (state.seat ? ` ${state.seat.row}열 ${state.seat.num}번` : '');
   $('#cSub').textContent = `${s.zone} ${s.floor}층 · ${s.side}` + (s.g.note ? ` · ${s.g.note}` : '');
   $('#cPrice').textContent = priceText(s.g);
@@ -226,7 +232,7 @@ function drawMini() {
 }
 
 $('#selSection').onchange = (e) => { const s = byId[e.target.value]; s ? goSection(s) : goOverview(); };
-$('#selRow').onchange = () => { syncPickerRow(); };
+$('#selRow').onchange = () => { syncPickerRow(); if (state.mode === 'seat') $('#btnView').onclick(); };
 function syncPickerRow() {
   const s = state.section, r = +$('#selRow').value, nums = s.seats.filter((x) => x.row === r).map((x) => x.num);
   fillSelect($('#selNum'), nums.map((x) => [x, `${x}번`]), Math.ceil(nums.length / 2));
@@ -241,24 +247,26 @@ $('#selNum').onchange = () => { if (state.mode === 'seat') $('#btnView').onclick
 $('#btnBack').onclick = () => (state.mode === 'seat' ? goSection(state.section) : goOverview());
 $('#btnAll').onclick = goOverview;
 document.querySelectorAll('[data-look]').forEach((b) => (b.onclick = () => lookAtKey(b.dataset.look)));
-$('#dayToggle').onclick = () => { state.weekend = !state.weekend; $('#dayToggle').textContent = state.weekend ? '주말 요금' : '평일 요금'; buildLegend(); syncUI(); };
+$('#dayToggle').onclick = () => { state.weekend = !state.weekend; $('#dayToggle').textContent = state.weekend ? '주말 요금' : '평일 요금'; $('#dayToggle').setAttribute('aria-pressed', state.weekend); buildLegend(); syncUI(); };
 $('#btnShare').onclick = async () => {
   try { await navigator.clipboard.writeText(location.href); $('#btnShare').textContent = '링크 복사됨'; }
   catch { $('#btnShare').textContent = '주소창 링크 복사'; }
   setTimeout(() => ($('#btnShare').textContent = '시야 링크 공유'), 1600);
 };
-$('#panelToggle').onclick = () => document.body.classList.toggle('panel-open');
+$('#panelToggle').onclick = () => { const on = document.body.classList.toggle('panel-open'); $('#panelToggle').setAttribute('aria-expanded', on); if (on) $('#selSection').focus(); };
 addEventListener('keydown', (e) => {
+  if (/^(SELECT|INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
   if (e.key === 'Escape') $('#btnBack').click();
   if (state.mode === 'seat' && !tween && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-    const s = state.section, cur = state.seat, n = cur.num + (e.key === 'ArrowRight' ? 1 : -1);
+    const s = state.section, cur = state.seat, n = cur.num + (e.key === 'ArrowRight' ? -1 : 1);   // 번호는 관중 기준 왼쪽으로 증가
     const i = s.seats.findIndex((x) => x.row === cur.row && x.num === n); if (i >= 0) goSeat(s, i);
   }
 });
 
 function fromHash() {
-  const m = decodeURIComponent(location.hash).match(/seat=([^/]+)\/(\d+)\/(\d+)/); if (!m) return false;
-  const s = byId[m[1]]; if (!s) return false;
+  const m = location.hash.match(/seat=([^/]+)\/(\d+)\/(\d+)/); if (!m) return false;
+  let id; try { id = decodeURIComponent(m[1]); } catch { return false; }
+  const s = byId[id]; if (!s) return false;
   const i = s.seats.findIndex((x) => x.row === +m[2] && x.num === +m[3]); if (i < 0) return false;
   goSeat(s, i); return true;
 }
@@ -269,6 +277,7 @@ function resize() {
   HOME_VIEW.set(0, 190, 122).multiplyScalar(camera.aspect < 0.8 ? 1.75 : 1);
 }
 addEventListener('resize', resize);
+addEventListener('hashchange', () => { if (!fromHash() && state.mode === 'seat') goOverview(); });
 
 buildLegend(); buildPicker(); resize(); camera.position.copy(HOME_VIEW); camera.lookAt(orbit.target);
 shell(false); syncUI();

@@ -43,9 +43,9 @@ export function R0(phiDeg) {
   const f = (((phiDeg % 360) + 360) % 360) / 360 * N, i = Math.floor(f), t = f - i;
   return R0T[i % N] * (1 - t) + R0T[(i + 1) % N] * t;
 }
-const inW = (phi) => smooth(60, 90, Math.abs(wrap180(phi)));      // 0=외야, 1=내야
-const Dout = (phi) => 15.5 + (32 - 15.5) * inW(phi);              // 외벽 위치
-const Ywall = (phi) => 23 + (28.5 - 23) * inW(phi);               // 외벽(지붕 시작) 높이
+const inW = (phi) => smooth(62, 76, Math.abs(wrap180(phi)));      // 0=외야, 1=내야
+const Dout = (phi) => 21 + (32 - 21) * inW(phi);              // 외벽 위치
+const Ywall = () => 31;               // 외벽(지붕 시작) 높이
 
 export function P(phi, d, y, out = new THREE.Vector3()) {
   const R = R0(phi) + d, p = phi * D2R;
@@ -254,7 +254,7 @@ export function buildStadium(scene, { fieldTexSize = 4096 } = {}) {
     P(phi, d, y, m.position); m.lookAt(0, y - 6, CZ * 0.6); root.add(m);
     const f = new THREE.Mesh(new THREE.BoxGeometry(spec.w + 1, spec.h + 1, 0.6), dark); f.position.copy(m.position); f.quaternion.copy(m.quaternion); f.translateZ(-0.4); root.add(f);
   };
-  mkBoard(0, o4.dEnd + 0.6, 26.5, SPEC.mainBoard, 'main');
+  mkBoard(0, o4.dEnd + 0.6, 26.2, SPEC.mainBoard, 'main');
   mkBoard(74, 10, 25, SPEC.twinBoard, 'HOME');
   mkBoard(-74, 10, 25, SPEC.twinBoard, 'AWAY');
 

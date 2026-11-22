@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>고척스카이돔 3D 좌석 시야 시뮬레이터</title>
 <meta name="description" content="고척스카이돔 좌석을 고르고 그 자리에서 보이는 그라운드 시야를 3D로 미리 확인하세요.">
 <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
@@ -17,27 +17,29 @@ header h1 { font-size:16px; margin:0; font-weight:800; letter-spacing:-.02em; }
 header h1 small { display:block; font-size:11px; font-weight:500; color:var(--sub); letter-spacing:0; margin-top:2px; }
 header .sp { flex:1; }
 header button { pointer-events:auto; }
-.btn { background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:8px 14px; font-size:13px; cursor:pointer; backdrop-filter:blur(10px); white-space:nowrap; }
+:focus-visible { outline:2px solid var(--acc); outline-offset:2px; }
+.btn { min-height:36px; background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:8px 14px; font-size:13px; cursor:pointer; backdrop-filter:blur(10px); white-space:nowrap; }
 .btn:hover { border-color:rgba(255,255,255,.35); }
 .btn.primary { background:var(--acc); color:#15120a; border-color:transparent; font-weight:800; }
 #panel { position:fixed; top:68px; left:16px; width:292px; max-height:calc(100% - 84px); overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px; backdrop-filter:blur(14px); z-index:4; }
 #panel h2 { font-size:12px; color:var(--sub); margin:0 0 8px; font-weight:600; display:flex; justify-content:space-between; align-items:center; }
-#panel h2 button { background:none; border:1px solid var(--line); border-radius:999px; font-size:11px; padding:3px 9px; cursor:pointer; }
+#panel h2 button { background:none; border:1px solid var(--line); border-radius:999px; font-size:12px; padding:6px 12px; min-height:28px; cursor:pointer; }
 .picker { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:14px; }
 .picker select { background:#1b202b; border:1px solid var(--line); border-radius:10px; padding:9px 8px; font-size:13px; min-width:0; }
 .picker #selSection, .picker #btnView { grid-column:1/-1; }
 .picker #btnView { border-radius:10px; padding:10px; }
 .picker select:disabled { opacity:.4; }
-.grade { display:flex; align-items:center; gap:8px; width:100%; background:none; border:1px solid transparent; border-radius:9px; padding:6px 8px; font-size:13px; cursor:pointer; text-align:left; }
+.grade { display:flex; align-items:center; gap:8px; width:100%; background:none; border:1px solid transparent; border-radius:9px; padding:6px 8px; min-height:36px; font-size:13px; cursor:pointer; text-align:left; }
 .grade:hover { background:rgba(255,255,255,.06); }
 .grade.on { border-color:var(--acc); background:rgba(255,212,0,.08); }
-.grade i { width:12px; height:12px; border-radius:3px; flex:none; }
+.grade i { width:13px; height:13px; border-radius:3px; flex:none; border:1px solid rgba(255,255,255,.55); }
 .grade span { flex:1; }
 .grade em { font-style:normal; color:var(--sub); font-size:12px; font-variant-numeric:tabular-nums; }
 .note { font-size:11px; color:var(--sub); line-height:1.5; margin:10px 0 0; }
 #card { position:fixed; right:16px; bottom:16px; width:300px; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px; backdrop-filter:blur(14px); z-index:4; }
 #card[hidden] { display:none; }
-#cGrade { display:inline-block; font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; color:#fff; }
+#cGrade { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; padding:3px 10px 3px 8px; border-radius:999px; color:#fff; background:#1b202b; border:1px solid var(--g,#fff); }
+#cGrade::before { content:''; width:9px; height:9px; border-radius:50%; background:var(--g,#fff); border:1px solid rgba(255,255,255,.6); }
 #cTitle { font-size:20px; font-weight:800; margin:8px 0 2px; letter-spacing:-.02em; }
 #cSub { font-size:12px; color:var(--sub); }
 #cPrice { font-size:17px; font-weight:800; color:var(--acc); margin-top:8px; font-variant-numeric:tabular-nums; }
@@ -56,34 +58,37 @@ body[data-mode=seat] #mini { display:block; }
 #panelToggle { display:none; }
 body:not([data-mode=overview]) #btnBack { display:inline-block; }
 #btnBack { display:none; }
-body[data-mode=seat] #panel { opacity:.0; pointer-events:none; }
-body[data-mode=seat].panel-open #panel { opacity:1; pointer-events:auto; }
+body[data-mode=seat] #panel { visibility:hidden; }
+body[data-mode=seat].panel-open #panel { visibility:visible; }
 body[data-mode=seat] #panelToggle { display:inline-block; }
 @media (max-width:760px) {
   header h1 small { display:none; }
   #panelToggle { display:inline-block; }
-  #panel { top:auto; bottom:0; left:0; right:0; width:auto; max-height:62%; border-radius:18px 18px 0 0; transform:translateY(105%); transition:transform .25s; opacity:1 !important; z-index:8; padding-bottom:max(14px,env(safe-area-inset-bottom)); }
-  body.panel-open #panel { transform:none; pointer-events:auto; }
+  #panel { top:auto; bottom:0; left:0; right:0; width:auto; max-height:62%; border-radius:18px 18px 0 0; transform:translateY(105%); visibility:hidden; transition:transform .25s, visibility .25s; z-index:8; padding-bottom:max(14px,env(safe-area-inset-bottom)); }
+  body.panel-open #panel { transform:none; visibility:visible; }
+  .btn, .grade { min-height:44px; }
+  #panel h2 button { min-height:36px; }
   #card { left:10px; right:10px; bottom:10px; width:auto; padding:12px; }
   #hint { bottom:auto; top:58px; font-size:11px; max-width:92vw; overflow:hidden; text-overflow:ellipsis; }
   #cStats { margin:8px 0; }
   body[data-mode=seat] #cStats div { padding:5px 2px; }
   body[data-mode=seat] #cTitle { font-size:17px; margin:6px 0 0; }
 }
+@media (prefers-reduced-motion:reduce) { #panel { transition:none !important; } }
 </style>
 </head>
 <body data-mode="overview">
-<canvas id="scene"></canvas>
-<div id="loading">경기장을 짓는 중…</div>
+<canvas id="scene" role="img" aria-label="고척스카이돔 3D 모델. 좌석은 좌석 찾기 패널의 구역·열·번호 선택으로도 고를 수 있습니다."></canvas>
+<div id="loading" role="status">경기장을 짓는 중…</div>
 
 <header>
   <button class="btn" id="btnBack">← 뒤로</button>
   <h1>고척스카이돔 3D 시야<small>좌석을 고르면 그 자리에서 보는 그라운드를 보여줍니다</small></h1>
   <div class="sp"></div>
-  <button class="btn" id="panelToggle">좌석 찾기</button>
+  <button class="btn" id="panelToggle" aria-expanded="false" aria-controls="panel">좌석 찾기</button>
 </header>
 
-<aside id="panel">
+<aside id="panel" aria-label="좌석 찾기">
   <h2>좌석 바로 찾기</h2>
   <div class="picker">
     <select id="selSection" aria-label="구역"></select>
@@ -91,13 +96,13 @@ body[data-mode=seat] #panelToggle { display:inline-block; }
     <select id="selNum" aria-label="번호" disabled></select>
     <button class="btn primary" id="btnView">이 좌석 시야 보기</button>
   </div>
-  <h2>좌석 등급 <button id="dayToggle">평일 요금</button></h2>
+  <h2>좌석 등급 <button id="dayToggle" aria-pressed="false" title="평일/주말 요금 전환">평일 요금</button></h2>
   <div id="legend"></div>
   <p class="note">모델 좌석 수 <b id="seatTotal"></b>석 (공식 16,744석). 펜스 99m·122m·4m, 지붕 67.59m, 전광판 규격, 구역 번호는 공개 자료 기준이며, 관람석 경사·깊이와 열/번호는 실측 도면이 아닌 추정 모델입니다. * 표시는 미검증 요금.</p>
 </aside>
 
-<section id="card" hidden>
-  <canvas id="mini" width="184" height="184"></canvas>
+<section id="card" aria-label="선택한 좌석 정보" aria-live="polite" hidden>
+  <canvas id="mini" width="184" height="184" aria-hidden="true"></canvas>
   <span id="cGrade"></span>
   <div id="cTitle"></div>
   <div id="cSub"></div>
@@ -116,7 +121,7 @@ body[data-mode=seat] #panelToggle { display:inline-block; }
 </section>
 
 <div id="hint"></div>
-<div id="tip" hidden></div>
+<div id="tip" aria-hidden="true" hidden></div>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>
