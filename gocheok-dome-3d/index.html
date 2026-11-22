@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>고척스카이돔 3D 좌석 시야 시뮬레이터</title>
+<meta name="description" content="고척스카이돔 좌석을 고르고 그 자리에서 보이는 그라운드 시야를 3D로 미리 확인하세요.">
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+<style>
+:root { --bg:#0b0e14; --panel:rgba(16,19,27,.88); --line:rgba(255,255,255,.1); --txt:#eef1f6; --sub:#9aa3b2; --acc:#ffd400; --bur:#a02445; }
+* { box-sizing:border-box; }
+html,body { margin:0; height:100%; background:var(--bg); color:var(--txt); font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif; overflow:hidden; overscroll-behavior:none; }
+#scene { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
+button,select { font:inherit; color:inherit; }
+header { position:fixed; top:0; left:0; right:0; display:flex; align-items:center; gap:12px; padding:12px 16px; padding-top:max(12px,env(safe-area-inset-top)); background:linear-gradient(#0b0e14e6,#0b0e1400); pointer-events:none; z-index:5; }
+header h1 { font-size:16px; margin:0; font-weight:800; letter-spacing:-.02em; }
+header h1 small { display:block; font-size:11px; font-weight:500; color:var(--sub); letter-spacing:0; margin-top:2px; }
+header .sp { flex:1; }
+header button { pointer-events:auto; }
+.btn { background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:8px 14px; font-size:13px; cursor:pointer; backdrop-filter:blur(10px); white-space:nowrap; }
+.btn:hover { border-color:rgba(255,255,255,.35); }
+.btn.primary { background:var(--acc); color:#15120a; border-color:transparent; font-weight:800; }
+#panel { position:fixed; top:68px; left:16px; width:292px; max-height:calc(100% - 84px); overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px; backdrop-filter:blur(14px); z-index:4; }
+#panel h2 { font-size:12px; color:var(--sub); margin:0 0 8px; font-weight:600; display:flex; justify-content:space-between; align-items:center; }
+#panel h2 button { background:none; border:1px solid var(--line); border-radius:999px; font-size:11px; padding:3px 9px; cursor:pointer; }
+.picker { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:14px; }
+.picker select { background:#1b202b; border:1px solid var(--line); border-radius:10px; padding:9px 8px; font-size:13px; min-width:0; }
+.picker #selSection, .picker #btnView { grid-column:1/-1; }
+.picker #btnView { border-radius:10px; padding:10px; }
+.picker select:disabled { opacity:.4; }
+.grade { display:flex; align-items:center; gap:8px; width:100%; background:none; border:1px solid transparent; border-radius:9px; padding:6px 8px; font-size:13px; cursor:pointer; text-align:left; }
+.grade:hover { background:rgba(255,255,255,.06); }
+.grade.on { border-color:var(--acc); background:rgba(255,212,0,.08); }
+.grade i { width:12px; height:12px; border-radius:3px; flex:none; }
+.grade span { flex:1; }
+.grade em { font-style:normal; color:var(--sub); font-size:12px; font-variant-numeric:tabular-nums; }
+.note { font-size:11px; color:var(--sub); line-height:1.5; margin:10px 0 0; }
+#card { position:fixed; right:16px; bottom:16px; width:300px; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px; backdrop-filter:blur(14px); z-index:4; }
+#card[hidden] { display:none; }
+#cGrade { display:inline-block; font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; color:#fff; }
+#cTitle { font-size:20px; font-weight:800; margin:8px 0 2px; letter-spacing:-.02em; }
+#cSub { font-size:12px; color:var(--sub); }
+#cPrice { font-size:17px; font-weight:800; color:var(--acc); margin-top:8px; font-variant-numeric:tabular-nums; }
+#cStats { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin:12px 0; }
+#cStats div { background:rgba(255,255,255,.05); border-radius:10px; padding:8px 4px; text-align:center; font-size:11px; color:var(--sub); }
+#cStats b { display:block; font-size:15px; color:var(--txt); font-variant-numeric:tabular-nums; }
+.row { display:flex; gap:6px; flex-wrap:wrap; }
+.row .btn { flex:1; padding:8px 6px; text-align:center; font-size:12px; }
+.seatOnly { display:none; }
+body[data-mode=seat] .seatOnly { display:flex; }
+#mini { display:none; width:92px; height:92px; position:absolute; right:12px; top:12px; border-radius:12px; background:#0d1017; }
+body[data-mode=seat] #mini { display:block; }
+#hint { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); font-size:12px; color:var(--sub); background:var(--panel); border:1px solid var(--line); padding:7px 14px; border-radius:999px; z-index:3; pointer-events:none; white-space:nowrap; }
+#tip { position:fixed; z-index:9; pointer-events:none; background:#000d; border:1px solid var(--line); padding:5px 9px; border-radius:8px; font-size:12px; }
+#loading { position:fixed; inset:0; display:grid; place-items:center; background:var(--bg); z-index:20; font-size:14px; color:var(--sub); }
+#panelToggle { display:none; }
+body:not([data-mode=overview]) #btnBack { display:inline-block; }
+#btnBack { display:none; }
+body[data-mode=seat] #panel { opacity:.0; pointer-events:none; }
+body[data-mode=seat].panel-open #panel { opacity:1; pointer-events:auto; }
+body[data-mode=seat] #panelToggle { display:inline-block; }
+@media (max-width:760px) {
+  header h1 small { display:none; }
+  #panelToggle { display:inline-block; }
+  #panel { top:auto; bottom:0; left:0; right:0; width:auto; max-height:62%; border-radius:18px 18px 0 0; transform:translateY(105%); transition:transform .25s; opacity:1 !important; z-index:8; padding-bottom:max(14px,env(safe-area-inset-bottom)); }
+  body.panel-open #panel { transform:none; pointer-events:auto; }
+  #card { left:10px; right:10px; bottom:10px; width:auto; padding:12px; }
+  #hint { bottom:auto; top:58px; font-size:11px; max-width:92vw; overflow:hidden; text-overflow:ellipsis; }
+  #cStats { margin:8px 0; }
+  body[data-mode=seat] #cStats div { padding:5px 2px; }
+  body[data-mode=seat] #cTitle { font-size:17px; margin:6px 0 0; }
+}
+</style>
+</head>
+<body data-mode="overview">
+<canvas id="scene"></canvas>
+<div id="loading">경기장을 짓는 중…</div>
+
+<header>
+  <button class="btn" id="btnBack">← 뒤로</button>
+  <h1>고척스카이돔 3D 시야<small>좌석을 고르면 그 자리에서 보는 그라운드를 보여줍니다</small></h1>
+  <div class="sp"></div>
+  <button class="btn" id="panelToggle">좌석 찾기</button>
+</header>
+
+<aside id="panel">
+  <h2>좌석 바로 찾기</h2>
+  <div class="picker">
+    <select id="selSection" aria-label="구역"></select>
+    <select id="selRow" aria-label="열" disabled></select>
+    <select id="selNum" aria-label="번호" disabled></select>
+    <button class="btn primary" id="btnView">이 좌석 시야 보기</button>
+  </div>
+  <h2>좌석 등급 <button id="dayToggle">평일 요금</button></h2>
+  <div id="legend"></div>
+  <p class="note">모델 좌석 수 <b id="seatTotal"></b>석 (공식 16,744석). 펜스 99m·122m·4m, 지붕 67.59m, 전광판 규격, 구역 번호는 공개 자료 기준이며, 관람석 경사·깊이와 열/번호는 실측 도면이 아닌 추정 모델입니다. * 표시는 미검증 요금.</p>
+</aside>
+
+<section id="card" hidden>
+  <canvas id="mini" width="184" height="184"></canvas>
+  <span id="cGrade"></span>
+  <div id="cTitle"></div>
+  <div id="cSub"></div>
+  <div id="cPrice"></div>
+  <div id="cStats"></div>
+  <div class="row seatOnly" style="margin-bottom:6px">
+    <button class="btn" data-look="home">홈</button>
+    <button class="btn" data-look="mound">마운드</button>
+    <button class="btn" data-look="field">외야</button>
+    <button class="btn" data-look="board">전광판</button>
+  </div>
+  <div class="row">
+    <button class="btn" id="btnAll">전체 보기</button>
+    <button class="btn seatOnly" id="btnShare">시야 링크 공유</button>
+  </div>
+</section>
+
+<div id="hint"></div>
+<div id="tip" hidden></div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
