@@ -45,7 +45,7 @@ export function R0(phiDeg) {
   return R0T[i % N] * (1 - t) + R0T[(i + 1) % N] * t;
 }
 const inW = (phi) => smooth(62, 76, Math.abs(wrap180(phi)));      // 0=외야, 1=내야
-const Dout = (phi) => 21 + (32 - 21) * inW(phi);                  // 외벽 위치
+export const Dout = (phi) => 21 + (32 - 21) * inW(phi);                  // 외벽 위치
 const Ywall = () => 33;                                           // 외벽(지붕 시작) 높이
 
 export function P(phi, d, y, out = new THREE.Vector3()) {
@@ -197,7 +197,20 @@ function labelSprite(text, color) {
 }
 
 // ── 선수 모델 ─────────────────────────────────────────
-function makePlayer(jersey, pants, { crouch = 0, bat = false, cap = 0x7a1634 } = {}) {
+// Blender 선수 모델(자세 4종)이 있으면 그것을, 없으면 아래 단순 모델을 쓴다
+let POSES = null;
+const pmats = {};
+const pmat = (hex, rough = 0.75) => (pmats[hex + '/' + rough] ||= new THREE.MeshStandardMaterial({ color: hex, roughness: rough }));
+function makePlayer(jersey, pants, opts = {}) {
+  const { crouch = 0, bat = false, cap = 0x7a1634 } = opts;
+  const pose = bat && crouch > 0.2 ? 'batter' : crouch >= 1 ? 'catcher' : crouch >= 0.3 ? 'ready' : 'stand';
+  if (!POSES?.[pose]) return legacyPlayer(jersey, pants, opts);
+  const o = POSES[pose].clone(true);
+  const col = { jersey, pants, cap, skin: 0xc89070, shoes: 0x111214, glove: 0x6b3a1a, bat: 0xb98952 };
+  o.traverse((m) => { if (m.isMesh) { const n = m.material.name; m.material = pmat(col[n] ?? jersey, n === 'shoes' || n === 'bat' ? 0.45 : 0.75); m.castShadow = true; } });
+  return o;
+}
+function legacyPlayer(jersey, pants, { crouch = 0, bat = false, cap = 0x7a1634 } = {}) {
   const g = new THREE.Group(), M = (c, r = 0.8) => new THREE.MeshStandardMaterial({ color: c, roughness: r });
   const add = (geo, mat, x, y, z, rx = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, 0, rz); m.castShadow = true; g.add(m); return m; };
   const leg = new THREE.CylinderGeometry(0.085, 0.07, 0.86, 8), mp = M(pants), mj = M(jersey), skin = M(0xd9a47c), dark = M(0x16181c);
@@ -216,7 +229,7 @@ function makePlayer(jersey, pants, { crouch = 0, bat = false, cap = 0x7a1634 } =
 }
 
 // ── 경기장 생성 ───────────────────────────────────────
-export function buildStadium(scene, { fieldTexSize = 4096, lite = false } = {}) {
+export function buildStadium(scene, { fieldTexSize = 4096, lite = false, assets = null } = {}) {
   const root = new THREE.Group(); scene.add(root);
   const concTex = canvasTex(256, 256, (g, w, h) => { g.fillStyle = '#d2cdc0'; g.fillRect(0, 0, w, h); noise(g, w, h, 0.14, 11); }, [0.4, 0.4]);
   const concrete = new THREE.MeshStandardMaterial({ color: 0xc9c5ba, map: concTex, roughness: 0.95, side: THREE.DoubleSide });
@@ -293,7 +306,14 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false } = {}) 
   sweep(cB, -30, 30, [[o4.dEnd + 1.2, o4.yEnd + 2.6], [(p) => Dout(p), o4.yEnd + 2.6]]);
   sweep(dB, -70, -30, [[o2.dEnd + 1.2, 11.3], [o2.dEnd + 3, 11.3], [o2.dEnd + 3, 33]]); sweep(dB, 30, 70, [[o2.dEnd + 1.2, 11.3], [o2.dEnd + 3, 11.3], [o2.dEnd + 3, 33]]);
   for (const [a, e] of [[70, 78], [282, 290]]) sweep(dB, a, e, [[0.3, fenceH], [0.3, 9], [6, 9], [6, 20], [(p) => Dout(p), 20]]);
-  root.add(meshFrom(cB, concrete, { cast: true }), meshFrom(dB, dark, { cast: true }), meshFrom(rail, steel));
+  const standC = meshFrom(cB, concrete, { cast: true }), standD = meshFrom(dB, dark, { cast: true });
+  standC.name = 'standsConcrete'; standD.name = 'standsDark';
+  if (assets?.stands) {                                // Blender 에서 그림자(AO)를 구운 같은 형상으로 교체
+    standC.geometry = assets.stands.concrete; standD.geometry = assets.stands.dark;
+    standC.material = concrete.clone(); standD.material = dark.clone();
+    for (const m of [standC.material, standD.material]) { m.aoMap = assets.ao; m.aoMapIntensity = 1.0; }
+  }
+  root.add(standC, standD, meshFrom(rail, steel));
   const ledTex = canvasTex(2048, 64, (g, w, h) => {
     g.fillStyle = '#080a10'; g.fillRect(0, 0, w, h); g.font = 'bold 40px sans-serif'; g.textBaseline = 'middle';
     const items = [['GOCHEOK SKY DOME', '#ffd24a'], ['HOME 6 : 3 AWAY', '#ffffff'], ['PLAY BALL', '#ff5c7a'], ['SEOUL', '#7ec8ff'], ['7회말', '#9dff9d']];
@@ -352,7 +372,8 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false } = {}) 
     const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, fog: false }); mat.color.setScalar(bright);
     return new THREE.Mesh(rg, mat);
   };
-  const roof = new THREE.Group(); roof.add(roofPart(0, TM, 10, memTex, 1.12), roofPart(TM, 1, 8, trussTex, 0.9));
+  const deckTex = canvasTex(256, 256, (g, w, h) => { g.fillStyle = '#4a4744'; g.fillRect(0, 0, w, h); g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 3; g.strokeRect(0, 0, w, h); noise(g, w, h, 0.12, 9); }, [1, 1]);
+  const roof = new THREE.Group(); roof.add(roofPart(0, TM, 10, memTex, 1.12), roofPart(TM, 1, 8, assets?.truss ? deckTex : trussTex, assets?.truss ? 0.75 : 0.9));
   root.add(roof);
 
   // 조명 뱅크(지붕 아래 링) — 발광체, 블룸으로 번짐
@@ -360,7 +381,7 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false } = {}) 
   const rigMat = new THREE.MeshStandardMaterial({ color: 0x30343a, roughness: 0.6, metalness: 0.5 });
   const lamps = [], rigs = [], Mx = new THREE.Matrix4(), O = new THREE.Object3D();
   for (const [t, stepA, off] of [[0.78, 9, 0], [0.68, 12, 5]]) for (let a = off; a < 360; a += stepA) {
-    const R = t * (R0(a) + Dout(a)), y = 33 + (H - 33) * (1 - t * t) - 2.2;
+    const R = t * (R0(a) + Dout(a)), y = 33 + (H - 33) * (1 - t * t) - (assets?.truss ? 3.1 : 2.2);   // 입체 트러스가 있으면 하현재 아래로
     O.position.set(R * Math.sin(a * D2R), y, CZ - R * Math.cos(a * D2R)); O.lookAt(0, 0, CZ * 0.9); O.updateMatrix();
     lamps.push(O.matrix.clone()); rigs.push(O.matrix.clone());
   }
@@ -368,11 +389,17 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false } = {}) 
   const rigI = new THREE.InstancedMesh(new THREE.BoxGeometry(3.8, 1.3, 0.5), rigMat, rigs.length);
   lamps.forEach((m, i) => { lampI.setMatrixAt(i, m); rigI.setMatrixAt(i, m); });
   const shell = new THREE.Group(); shell.add(lampI, rigI); root.add(shell);
+  if (assets?.truss) {                                 // Blender 입체 철골 트러스 + 막 아치
+    const tm = { truss: new THREE.MeshStandardMaterial({ color: 0xc4c8cc, metalness: 0.55, roughness: 0.42 }), cable: new THREE.MeshStandardMaterial({ color: 0xece8e6, metalness: 0.2, roughness: 0.5 }) };
+    assets.truss.traverse((o) => { if (o.isMesh) o.material = tm[o.material.name] || tm.truss; });
+    shell.add(assets.truss);
+  }
 
   // 폴, 베이스, 선수
   const poleMat = new THREE.MeshStandardMaterial({ color: 0xf2c230, roughness: 0.5 });
   for (const p of polePts) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 22, 8), poleMat); m.position.set(p.x, 11, p.z); m.castShadow = true; root.add(m); }
   const bs = SPEC.base / Math.SQRT2, white = new THREE.MeshStandardMaterial({ color: 0xf4f4f0, roughness: 0.8 });
+  POSES = assets?.players || null;
   const players = new THREE.Group(); root.add(players);
   for (const [x, z] of [[bs, -bs], [0, -2 * bs], [-bs, -bs]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.08, 0.4), white); m.position.set(x, 0.04, z); m.rotation.y = Math.PI / 4; m.receiveShadow = true; players.add(m); }
   const put = (x, z, look, pl) => { pl.position.set(x, 0, z); pl.lookAt(look[0], 0, look[1]); pl.rotateY(Math.PI); players.add(pl); };
@@ -399,7 +426,7 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false } = {}) 
   mkBoard(-47, o2.dEnd + 2.6, 20, SPEC.twinBoard, 'AWAY');
 
   // ── 좌석 (접이식: 등받이 + 접힌 좌판 + 브래킷) ──
-  const seatGeo = merge([
+  const seatGeo = assets?.seatLo || merge([
     [box(0.45, 0.44, 0.045, 0, 0.66, 0.2, -0.14), '#ffffff'],
     [box(0.45, 0.4, 0.05, 0, 0.47, 0.1, -0.24), '#e9e9e9'],
     [box(0.035, 0.5, 0.26, -0.245, 0.4, 0.13), '#2b2b2b'],
@@ -502,5 +529,5 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false } = {}) 
     const cone = new THREE.CylinderGeometry(0.25, 4.2, 34, 14, 1, true).translate(0, -17, 0);
     [0xff5ca8, 0x6aa8ff, 0xffe27a, 0x9d7bff].forEach((c, k) => { for (const sx of [-1, 1]) { const m = new THREE.Mesh(cone, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.13, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })); m.position.set(sx * (6 + k * 6), 25.5, -90); m.rotation.set(0.35 + k * 0.12, 0, sx * (0.12 + k * 0.1)); m.renderOrder = 6; concert.add(m); } });
   }
-  return { root, sections, labels, roof, wall, shell, net, crowd, players, concert, lampMat, total, people, polePts, ledTex };
+  return { root, sections, labels, roof, wall, shell, net, crowd, players, concert, lampMat, total, people, polePts, ledTex, standC, standD, seatGroup, seatHi: assets?.seatHi || null, seatLo: assets?.seatLo ? seatGeo : null };
 }

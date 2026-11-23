@@ -40,6 +40,28 @@ three.js는 `vendor/`에 포함되어 있어 외부 CDN이 필요 없습니다.
 화면 상단의 "실제 360° 투어" 버튼은 공개된 고척 스카이돔 가상투어(Cupix)를 새 창으로 엽니다.
 투어의 사진은 이 앱에 포함하지 않았습니다. 사진을 앱 안에 넣으려면 권리자의 허락이 필요합니다.
 
+## Blender 에셋
+
+`assets/` 의 모델은 `tools/blender/` 스크립트로 Blender에서 만든 것입니다. 불러오기에 실패하면 앱은 예전의 절차적 모델로 대신 그립니다.
+
+| 파일 | 내용 |
+|---|---|
+| `seat_hi.glb` / `seat_lo.glb` | 접이식 관람석 (곡면 등받이·팔걸이·다리). 보고 있는 구역 주변 38m만 고품질 |
+| `roof_truss.glb` | 지붕 바깥 띠의 입체 철골 트러스와 막 구간 아치 |
+| `players.glb` | 선수 자세 4종 (서기·수비 준비·포수·타자). 재질 이름으로 팀 색을 입힘 |
+| `stands.glb`, `stands_ao*.jpg` | 스탠드 형상과, Cycles로 구운 주변 차폐(좌석·계단 그림자). 모바일은 2K본 사용 |
+
+다시 만드는 순서 (관람석 형상을 `src/data.js` 에서 바꿨다면 1~3 모두 다시 실행):
+
+```bash
+pip install bpy==5.3.0 playwright          # Blender 파이썬 모듈
+python3 -m http.server 8765 &              # gocheok-dome-3d 폴더에서
+node tools/export_scene.cjs http://localhost:8765/ /tmp/gd        # 1. 형상·좌석 위치 내보내기
+python tools/blender/build_assets.py /tmp/gd/scene.json assets     # 2. 좌석·트러스·선수
+python tools/blender/bake_stands.py /tmp/gd assets assets 4096 192 # 3. 스탠드 AO 굽기 (4코어 CPU 약 5분)
+python tools/blender/preview.py assets /tmp/pv                     # (선택) Cycles 미리보기 렌더
+```
+
 ## 데이터 근거와 한계
 
 실시설 설계 도면(CAD)은 공개되어 있지 않아, 공개 제원에 맞춰 형상을 만들고 나머지는 추정했습니다.

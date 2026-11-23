@@ -9,6 +9,7 @@ import { RoomEnvironment } from '../vendor/jsm/environments/RoomEnvironment.js';
 import { SPEC, GRADES } from './data.js';
 import { buildStadium, R0, P } from './stadium.js';
 import { createPlan } from './plan.js';
+import { loadAssets } from './assets.js';
 
 const $ = (q) => document.querySelector(q);
 const canvas = $('#scene');
@@ -35,7 +36,8 @@ orbit.target.set(0, 4, -52); orbit.enableDamping = true; orbit.maxPolarAngle = M
 orbit.minDistance = 40; orbit.maxDistance = 420; orbit.enablePan = false;
 
 const maxTex = renderer.capabilities.maxTextureSize;
-const st = buildStadium(scene, { fieldTexSize: isMobile || maxTex < 4096 ? 2048 : 4096, lite: isMobile });
+const assets = new URLSearchParams(location.search).has('export') ? null : await loadAssets({ lite: isMobile, maxTex }).catch(() => null);
+const st = buildStadium(scene, { fieldTexSize: isMobile || maxTex < 4096 ? 2048 : 4096, lite: isMobile, assets });
 const { sections } = st;
 const byId = Object.fromEntries(sections.map((s) => [s.id, s]));
 const HOME_VIEW = new THREE.Vector3(0, 190, 122);
@@ -338,7 +340,14 @@ function syncPicker() {
   const nums = s.seats.filter((x) => x.row === r).map((x) => x.num);
   fillSelect(ns, nums.map((x) => [x, `${x}번`]), state.seat ? state.seat.num : nums.includes(+ns.value) ? +ns.value : Math.ceil(nums.length / 2));
 }
+// 좌석 LOD: 보고 있는 구역 주변(38m)만 고품질 좌석
+function updateLOD() {
+  if (!st.seatHi) return;
+  const f = state.mode === 'overview' || !state.section ? null : state.section.center;
+  for (const s of sections) { const g = f && s.center.distanceTo(f) < 38 ? st.seatHi : st.seatLo; if (s.mesh.geometry !== g) s.mesh.geometry = g; }
+}
 function syncUI() {
+  updateLOD();
   document.body.dataset.mode = state.mode; $('#tip').hidden = true;
   setOffset();
   st.crowd.visible = state.mode === 'seat' && state.crowd; st.net.visible = state.mode === 'seat' && state.event !== 'concert'; rowLabels.visible = state.mode === 'section';
@@ -489,7 +498,7 @@ $('#seatTotal').textContent = st.total.toLocaleString();
 if (!fromHash()) { camera.position.set(0, 330, 260); flyTo(HOME_VIEW, orbit.target, 50, 1800, () => { orbit.enabled = true; }); }
 renderer.shadowMap.needsUpdate = true;
 $('#loading').remove();
-window.__app = { setEvent, plan, state, sections, goSection, goSeat, goOverview, goNeighbor, neighbor, thumb, st, camera };
+window.__app = { assets, setEvent, plan, state, sections, goSection, goSeat, goOverview, goNeighbor, neighbor, thumb, st, camera };
 
 renderer.setAnimationLoop((now) => {
   stepTween(now);
