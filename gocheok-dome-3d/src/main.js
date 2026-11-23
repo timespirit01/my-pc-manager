@@ -61,14 +61,15 @@ const grade = new ShaderPass({
 composer.addPass(grade);
 
 // ── 상태 ─────────────────────────────────────────────
-const state = { crowd: true, mode: 'overview', section: null, seat: null, seatIdx: -1, hover: null, filter: null, weekend: false };
-const YELLOW = new THREE.Color(0xffd400), GRAY = new THREE.Color(0x4a4d55), tmpC = new THREE.Color();
+const state = { crowd: false, mode: 'overview', section: null, seat: null, seatIdx: -1, hover: null, hoverSeat: -1, filter: null, weekend: false };
+const WHITE = new THREE.Color(0xffffff), YELLOW = new THREE.Color(0xffd400), GRAY = new THREE.Color(0x4a4d55), tmpC = new THREE.Color();
 
 function paint(s) {
   const dim = state.filter && state.filter !== s.grade;
   const hot = state.hover === s || (state.section === s && state.mode === 'section');
   tmpC.copy(dim ? GRAY : state.mode === 'seat' ? s.realColor : s.color); if (hot && !dim) tmpC.lerp(new THREE.Color(0xffffff), 0.22);
   for (let i = 0; i < s.seats.length; i++) s.mesh.setColorAt(i, tmpC);
+  if (state.section === s && state.mode === 'section' && state.hoverSeat >= 0) s.mesh.setColorAt(state.hoverSeat, WHITE);
   if (state.section === s && state.seatIdx >= 0) s.mesh.setColorAt(state.seatIdx, YELLOW);
   s.mesh.instanceColor.needsUpdate = true;
   s.label.material.opacity = dim ? 0.15 : 1;
@@ -95,8 +96,12 @@ function stepTween(now) {
   if (t >= 1) { const d = tween.done; tween = null; d && d(); }
 }
 
-function clearHover() { const o = state.hover; state.hover = null; if (o) paint(o); $('#tip').hidden = true; }
+function clearHover() { const o = state.hover; state.hover = null; state.hoverSeat = -1; if (o) paint(o); $('#tip').hidden = true; }
 function setHash(h) { history.replaceState(null, '', h || location.pathname + location.search); }
+function setOffset() {            // 구역 화면: 카드가 가리는 만큼 화면을 밀어 좌석이 빈 영역 가운데 오게
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (state.mode === 'section') camera.setViewOffset(w, h, isMobile ? 0 : w * 0.1, isMobile ? h * 0.13 : -h * 0.03, w, h); else camera.clearViewOffset();
+}
 function shell(on) { st.shell.visible = on; scene.fog = on ? HAZE : null; }
 let hiddenP = null;
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
@@ -107,18 +112,43 @@ function hideOwnPerson(s, seat) {
 
 function goOverview() {
   state.mode = 'overview'; const prev = state.section; state.section = null; state.seat = null; state.seatIdx = -1;
-  if (prev) paint(prev); clearHover(); setHash('');
+  if (prev) paint(prev); clearHover(); setHash(''); hideOwnPerson(null);
   shell(false); st.labels.visible = true;
   flyTo(HOME_VIEW, orbit.target, 50, 1300, () => { orbit.enabled = true; });
   syncUI();
 }
 
-function goSection(s) {
+// 구역 보기: 좌석이 격자로 보이는 정면 배치도 시점 + 열 번호 라벨
+const rowLabels = new THREE.Group(); scene.add(rowLabels);
+let secView = null;
+function applySecZoom() { camera.position.copy(secView.center).addScaledVector(secView.dir, secView.dist * secView.k); }
+function buildRowLabels(s) {
+  for (const o of rowLabels.children) { o.material.map.dispose(); o.material.dispose(); } rowLabels.clear();
+  for (const r of rowsOf(s)) {
+    const row = s.seats.filter((x) => x.row === r), a = row[0], b = row[row.length - 1];
+    const c = document.createElement('canvas'); c.width = 128; c.height = 64; const g = c.getContext('2d');
+    g.fillStyle = 'rgba(10,12,18,.85)'; g.beginPath(); g.roundRect(2, 2, 124, 60, 18); g.fill();
+    g.fillStyle = '#fff'; g.font = 'bold 36px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(`${r}열`, 64, 34);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    for (const [p, q] of [[a, b], [b, a]]) {            // 양쪽 끝에 표시
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, toneMapped: false, fog: false })); sp.scale.set(1.1, 0.55, 1); sp.renderOrder = 9;
+      const d = new THREE.Vector3(p.x - q.x, 0, p.z - q.z); if (d.lengthSq() < 0.01) d.set(1, 0, 0); d.normalize();
+      sp.position.set(p.x + d.x * 1.0, p.y + 0.75, p.z + d.z * 1.0); rowLabels.add(sp);
+      if (row.length < 2) break;
+    }
+  }
+}
+function goSection(s, keepPanel = false) {
+  if (!keepPanel) closePanel();       // 3D·미니맵·옆 구역 이동으로 들어오면 패널을 접어 배치도를 가리지 않게
   const prev = state.section; state.mode = 'section'; state.section = s; state.seat = null; state.seatIdx = -1;
   if (prev && prev !== s) paint(prev); clearHover(); paint(s); setHash('');
-  shell(true); st.labels.visible = false;
-  const pos = s.center.clone().addScaledVector(s.inward, 15 + s.rowCount * 0.8).add(new THREE.Vector3(0, 9 + s.rowCount * 0.3, 0));
-  flyTo(pos, s.center, 50, 1300);
+  shell(true); st.labels.visible = false; hideOwnPerson(null);
+  buildRowLabels(s);
+  const first = s.seats.filter((x) => x.row === s.seats[0].row), W = Math.hypot(first[0].x - first.at(-1).x, first[0].z - first.at(-1).z) + 4, Hh = s.rowCount * 0.75 + 3;
+  const th = Math.tan((50 * Math.PI) / 360), dist = Math.max(9, 1.08 * Math.max(W / (2 * th * camera.aspect), Hh / (2 * th)));
+  const el = (52 * Math.PI) / 180, dir = s.inward.clone().multiplyScalar(Math.cos(el)).add(new THREE.Vector3(0, Math.sin(el), 0));
+  secView = { center: s.center.clone(), dir, dist: dist * (isMobile ? 1.12 : 1.3), k: 1 };
+  flyTo(s.center.clone().addScaledVector(dir, secView.dist), s.center, 50, 1300);
   syncUI();
 }
 
@@ -171,6 +201,10 @@ canvas.addEventListener('pointermove', (e) => {
   if (ptrs.has(e.pointerId)) {
     const prev = ptrs.get(e.pointerId); ptrs.set(e.pointerId, e);
     if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6) down.moved = true;
+    if (state.mode === 'section' && !tween && ptrs.size === 2 && secView) {
+      const [a, b] = [...ptrs.values()], d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      secView.k = THREE.MathUtils.clamp(secView.k * (pinch0 / d), 0.3, 1.5); pinch0 = d; down.moved = true; applySecZoom();
+    }
     if (state.mode === 'seat' && !tween) {
       if (ptrs.size === 2) {
         const [a, b] = [...ptrs.values()], d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
@@ -184,11 +218,15 @@ canvas.addEventListener('pointermove', (e) => {
     return;
   }
   if (e.pointerType !== 'mouse' || state.mode === 'seat' || tween) return;
-  const h = pick(e), s = h ? h.s : null;
-  if (s !== state.hover) { const o = state.hover; state.hover = s; if (o) paint(o); if (s) paint(s); }
+  const h = pick(e), s = h ? h.s : null, hs = state.mode === 'section' && s === state.section && h.idx >= 0 ? h.idx : -1;
+  if (s !== state.hover || hs !== state.hoverSeat) { const o = state.hover; state.hover = s; state.hoverSeat = hs; if (o) paint(o); if (s && s !== o) paint(s); }
   canvas.style.cursor = s ? 'pointer' : 'grab';
   const tip = $('#tip');
-  if (s) { tip.hidden = false; tip.style.left = e.clientX + 14 + 'px'; tip.style.top = e.clientY + 14 + 'px'; tip.textContent = `${s.id}구역 · ${s.g.name} · ${priceText(s.g)}`; } else tip.hidden = true;
+  if (!s) { tip.hidden = true; return; }
+  if (hs >= 0) { const q = s.seats[hs]; $('#tipImg').hidden = true; $('#tipTxt').textContent = `${q.row}열 ${q.num}번 · 누르면 이 자리 시야`; }
+  else { $('#tipImg').hidden = false; $('#tipImg').src = thumb(s); $('#tipTxt').textContent = `${s.id}구역 · ${s.g.name} · ${priceText(s.g)}`; }
+  tip.hidden = false;
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - 250) + 'px'; tip.style.top = Math.min(e.clientY + 14, innerHeight - (hs >= 0 ? 40 : 180)) + 'px';
 });
 const up = (e) => {
   ptrs.delete(e.pointerId);
@@ -201,9 +239,65 @@ const up = (e) => {
 canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
 canvas.addEventListener('pointerleave', (e) => { if (!ptrs.has(e.pointerId)) clearHover(); });
 canvas.addEventListener('wheel', (e) => {
+  if (state.mode === 'section' && secView && !tween) { e.preventDefault(); secView.k = THREE.MathUtils.clamp(secView.k * (e.deltaY > 0 ? 1.1 : 0.9), 0.3, 1.5); applySecZoom(); return; }
   if (state.mode !== 'seat') return; e.preventDefault(); if (tween) return;
   pov.fov = THREE.MathUtils.clamp(pov.fov * (e.deltaY > 0 ? 1.08 : 0.92), 12, 80); applyPov();
 }, { passive: false });
+
+// ── 구역 시야 미리보기(썸네일): 작은 화면으로 한 번 그려 캐시 ──
+const TW = 320, TH = 180, thumbRT = new THREE.WebGLRenderTarget(TW, TH), thumbCam = new THREE.PerspectiveCamera(62, TW / TH, 0.1, 900);
+const tcv = document.createElement('canvas'); tcv.width = TW; tcv.height = TH; const tctx = tcv.getContext('2d'), tbuf = new Uint8Array(TW * TH * 4);
+function midSeat(s) { const rows = rowsOf(s), r = rows[Math.floor(rows.length / 2)], row = s.seats.filter((x) => x.row === r); return row[Math.floor(row.length / 2)]; }
+function thumb(s) {
+  if (s.thumb) return s.thumb;
+  thumbCam.position.copy(seatEye(midSeat(s))); thumbCam.lookAt(LOOKS.mound);
+  const sv = [st.shell.visible, st.labels.visible, st.crowd.visible, st.net.visible, rowLabels.visible, scene.fog];
+  st.shell.visible = true; st.labels.visible = false; st.crowd.visible = false; st.net.visible = true; rowLabels.visible = false; scene.fog = HAZE;
+  renderer.setRenderTarget(thumbRT); renderer.render(scene, thumbCam); renderer.readRenderTargetPixels(thumbRT, 0, 0, TW, TH, tbuf); renderer.setRenderTarget(null);
+  [st.shell.visible, st.labels.visible, st.crowd.visible, st.net.visible, rowLabels.visible, scene.fog] = sv;
+  const img = tctx.createImageData(TW, TH), d = img.data;
+  for (let y = 0; y < TH; y++) for (let x = 0; x < TW; x++) {
+    const i = ((TH - 1 - y) * TW + x) * 4, o = (y * TW + x) * 4;
+    for (let c = 0; c < 3; c++) { const v = tbuf[i + c] / 255; d[o + c] = 255 * Math.pow(Math.min(1, v * 1.25 / (1 + v * 0.25)), 1 / 2.2); }   // 선형 → 화면 밝기
+    d[o + 3] = 255;
+  }
+  tctx.putImageData(img, 0, 0);
+  return (s.thumb = tcv.toDataURL('image/jpeg', 0.82));
+}
+
+// ── 옆 구역: 같은 층에서 각도상 가장 가까운 구역 (dir=+1 이면 관중 기준 왼쪽) ──
+const mid = (s) => (s.a + s.b) / 2;
+function neighbor(s, dir) {
+  let best = null, bd = 40;
+  for (const pass of [1, 0]) {
+    for (const c of sections) {
+      if (c === s || c.floor !== s.floor || (pass && !!c.rowTo !== !!s.rowTo)) continue;
+      const df = ((((mid(c) - mid(s)) * dir) % 360) + 360) % 360;
+      if (df > 0.5 && df < bd) { bd = df; best = c; }
+    }
+    if (best) break;
+  }
+  return best;
+}
+function goNeighbor(side) {           // side: -1 화면 왼쪽, +1 화면 오른쪽
+  const s = state.section; if (!s || tween) return;
+  const n = neighbor(s, state.mode === 'seat' ? -side : side); if (!n) return;   // 구역 보기는 그라운드 쪽에서 바라보므로 좌우가 반대
+  if (state.mode !== 'seat') return goSection(n);
+  const rows = rowsOf(n), r = rows.includes(state.seat.row) ? state.seat.row : rows[Math.min(rows.length - 1, Math.floor(rows.length / 2))];
+  const row = n.seats.filter((x) => x.row === r), q = row[Math.floor(row.length / 2)];
+  goSeat(n, n.seats.indexOf(q));
+}
+function syncCrumb() {
+  const s = state.section; if (!s) return;
+  const seatMode = state.mode === 'seat', L = neighbor(s, seatMode ? 1 : -1), R = neighbor(s, seatMode ? -1 : 1);
+  $('#navL').textContent = L ? `◀ ${L.id}` : '◀'; $('#navL').disabled = !L; $('#navL').setAttribute('aria-label', L ? `왼쪽 옆 구역 ${L.id}` : '왼쪽 옆 구역 없음');
+  $('#navR').textContent = R ? `${R.id} ▶` : '▶'; $('#navR').disabled = !R; $('#navR').setAttribute('aria-label', R ? `오른쪽 옆 구역 ${R.id}` : '오른쪽 옆 구역 없음');
+  const el = $('#crumbPath'); el.innerHTML = '';
+  const link = (t, fn) => { const b = document.createElement('button'); b.textContent = t; b.onclick = fn; el.append(b); const i = document.createElement('i'); i.textContent = '›'; el.append(i); };
+  link('전체', goOverview);
+  if (seatMode) { link(`${s.id}구역`, () => goSection(s)); const b = document.createElement('b'); b.textContent = `${state.seat.row}열 ${state.seat.num}번`; el.append(b); }
+  else { const b = document.createElement('b'); b.textContent = `${s.id}구역`; el.append(b); }
+}
 
 // ── UI ───────────────────────────────────────────────
 const won = (n) => n.toLocaleString('ko-KR') + '원';
@@ -243,12 +337,13 @@ function syncPicker() {
 }
 function syncUI() {
   document.body.dataset.mode = state.mode; $('#tip').hidden = true;
-  st.crowd.visible = state.mode === 'seat' && state.crowd; st.net.visible = state.mode !== 'overview';
+  setOffset();
+  st.crowd.visible = state.mode === 'seat' && state.crowd; st.net.visible = state.mode === 'seat'; rowLabels.visible = state.mode === 'section';
   if ((state.mode === 'seat') !== syncUI.wasSeat) { syncUI.wasSeat = state.mode === 'seat'; sections.forEach(paint); }   // 시야 화면에서는 실제 좌석 색
   const s = state.section, card = $('#card');
   syncPicker();
   if (!s) { card.hidden = true; $('#hint').textContent = '구역을 눌러 좌석을 선택하세요 · 드래그로 회전, 휠/핀치로 확대'; return; }
-  card.hidden = false;
+  card.hidden = false; syncCrumb(); drawMini();
   $('#cGrade').textContent = s.g.name; $('#cGrade').style.setProperty('--g', s.g.color);
   $('#cTitle').textContent = `${s.id}구역` + (state.seat ? ` ${state.seat.row}열 ${state.seat.num}번` : '');
   $('#cSub').textContent = `${s.zone} ${s.floor}층 · ${s.side}` + (s.g.note ? ` · ${s.g.note}` : '');
@@ -257,23 +352,45 @@ function syncUI() {
     const e = seatEye(state.seat), dH = Math.hypot(e.x, e.z), dM = Math.hypot(e.x, e.z + SPEC.mound);
     $('#cStats').innerHTML = `<div><b>${dH.toFixed(0)}m</b>홈플레이트</div><div><b>${dM.toFixed(0)}m</b>마운드</div><div><b>${e.y.toFixed(1)}m</b>눈높이</div>`;
     $('#hint').textContent = '드래그로 둘러보기 · 휠/핀치로 확대';
-    drawMini();
   } else {
     $('#cStats').innerHTML = `<div><b>${s.seats.length}</b>좌석</div><div><b>${rowsOf(s).length}</b>열</div><div><b>${Math.hypot(s.center.x, s.center.z).toFixed(0)}m</b>홈까지</div>`;
-    $('#hint').textContent = '좌석을 누르면 그 자리에서 보는 시야로 이동합니다';
+    $('#hint').textContent = '좌석을 누르면 그 자리에서 보는 시야로 이동합니다 · 휠/핀치로 확대';
+    $('#cThumb').src = thumb(s);
   }
 }
+const MINI = 215;                       // 미니맵에 담는 범위(m)
 function drawMini() {
-  const c = $('#mini'), g = c.getContext('2d'), W = c.width, k = W / 250, X = (x) => W / 2 + x * k, Z = (z) => W / 2 + (z - SPEC.centerZ) * k;
+  const c = $('#mini'), g = c.getContext('2d'), W = c.width, k = W / MINI, X = (x) => W / 2 + x * k, Z = (z) => W / 2 + (z - SPEC.centerZ) * k;
   g.clearRect(0, 0, W, W);
   const ring = (d, fill) => { g.beginPath(); for (let i = 0; i <= 120; i++) { const p = P(i * 3, d, 0); i ? g.lineTo(X(p.x), Z(p.z)) : g.moveTo(X(p.x), Z(p.z)); } g.fillStyle = fill; g.fill(); };
-  ring(30, '#2a2f3a'); ring(0, '#3f8a3c');
+  ring(0, '#3f8a3c');
   g.strokeStyle = '#fff'; g.lineWidth = 1; g.beginPath();
   for (const p of st.polePts) { g.moveTo(X(0), Z(0)); g.lineTo(X(p.x), Z(p.z)); } g.stroke();
-  const s = state.seat; g.fillStyle = '#ffd400'; g.beginPath(); g.arc(X(s.x), Z(s.z), 5, 0, 7); g.fill(); g.strokeStyle = '#000'; g.stroke();
+  for (const s of sections) {
+    if (!s.quad) { const r0 = s.seats.filter((x) => x.row === s.seats[0].row), r1 = s.seats.filter((x) => x.row === s.seats.at(-1).row); s.quad = [r0[0], r0.at(-1), r1.at(-1), r1[0]]; }
+    g.beginPath(); s.quad.forEach((q, i) => (i ? g.lineTo(X(q.x), Z(q.z)) : g.moveTo(X(q.x), Z(q.z)))); g.closePath();
+    const cur = s === state.section;
+    g.globalAlpha = cur ? 1 : 0.5; g.fillStyle = cur ? '#ffd400' : s.g.color; g.fill(); g.globalAlpha = 1;
+    g.lineWidth = cur ? 2 : 0.5; g.strokeStyle = cur ? '#fff' : 'rgba(0,0,0,.5)'; g.stroke();
+  }
+  const q = state.seat; if (q) { g.fillStyle = '#fff'; g.beginPath(); g.arc(X(q.x), Z(q.z), 4.5, 0, 7); g.fill(); g.strokeStyle = '#000'; g.lineWidth = 1.5; g.stroke(); }
 }
+$('#mini').onclick = (e) => {
+  if (tween) return;
+  const r = e.currentTarget.getBoundingClientRect(), x = ((e.clientX - r.left) / r.width - 0.5) * MINI, z = ((e.clientY - r.top) / r.height - 0.5) * MINI + SPEC.centerZ;
+  let best = null, bd = 18;
+  for (const s of sections) { const d = Math.hypot(s.center.x - x, s.center.z - z); if (d < bd) { bd = d; best = s; } }
+  if (best && best !== state.section) goSection(best);
+};
+$('#navL').onclick = () => goNeighbor(-1); $('#navR').onclick = () => goNeighbor(1);
+$('#btnHome').onclick = goOverview;
+if (document.documentElement.requestFullscreen) $('#btnFull').onclick = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}));
+else $('#btnFull').hidden = true;
 
-$('#selSection').onchange = (e) => { const s = byId[e.target.value]; s ? goSection(s) : goOverview(); };
+$('#selSection').onchange = (e) => {   // 패널에서 고르는 중이면 열·번호를 이어서 고를 수 있게 패널을 열어 둔다
+  const s = byId[e.target.value]; if (!s) return goOverview();
+  document.body.classList.add('panel-open'); $('#panelToggle').setAttribute('aria-expanded', true); goSection(s, true);
+};
 $('#selRow').onchange = () => { syncPickerRow(); if (state.mode === 'seat') viewPicked(); };
 function syncPickerRow() {
   const s = state.section, r = +$('#selRow').value, nums = s.seats.filter((x) => x.row === r).map((x) => x.num);
@@ -320,7 +437,7 @@ function fromHash() {
 function resize() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
   renderer.setSize(w, h, false); composer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
-  HOME_VIEW.set(0, 190, 122).multiplyScalar(camera.aspect < 0.8 ? 1.75 : 1);
+  HOME_VIEW.set(0, 190, 122).multiplyScalar(camera.aspect < 0.8 ? 1.75 : 1); setOffset();
 }
 addEventListener('resize', resize);
 addEventListener('hashchange', () => { if (!fromHash() && state.mode === 'seat') goOverview(); });
@@ -331,7 +448,7 @@ $('#seatTotal').textContent = st.total.toLocaleString();
 if (!fromHash()) { camera.position.set(0, 330, 260); flyTo(HOME_VIEW, orbit.target, 50, 1800, () => { orbit.enabled = true; }); }
 renderer.shadowMap.needsUpdate = true;
 $('#loading').remove();
-window.__app = { state, sections, goSection, goSeat, goOverview, st, camera };
+window.__app = { state, sections, goSection, goSeat, goOverview, goNeighbor, neighbor, thumb, st, camera };
 
 renderer.setAnimationLoop((now) => {
   stepTween(now);

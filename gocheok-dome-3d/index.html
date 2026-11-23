@@ -52,17 +52,38 @@ a.btn { text-decoration:none; display:inline-flex; align-items:center; color:var
 .row .btn { flex:1; padding:8px 6px; text-align:center; font-size:12px; }
 .seatOnly { display:none; }
 body[data-mode=seat] .seatOnly { display:flex; }
-#mini { display:none; width:92px; height:92px; position:absolute; right:12px; top:12px; border-radius:12px; background:#0d1017; }
-body[data-mode=seat] #mini { display:block; }
+#mini { display:none; position:fixed; left:16px; bottom:16px; width:140px; height:140px; border-radius:14px; background:#0d1017d9; border:1px solid var(--line); z-index:4; cursor:pointer; }
+body:not([data-mode=overview]) #mini { display:block; }
+body:not([data-mode=overview]) #panel { max-height:calc(100% - 250px); }
+#crumb { display:none; position:fixed; top:60px; left:50%; transform:translateX(-50%); z-index:6; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:4px; backdrop-filter:blur(10px); max-width:calc(100vw - 20px); }
+body:not([data-mode=overview]) #crumb { display:flex; }
+#crumb .btn { background:none; border-color:transparent; padding:6px 12px; font-size:13px; min-height:36px; }
+#crumb .btn:hover:not(:disabled) { background:rgba(255,255,255,.08); }
+#crumb .btn:disabled { opacity:.3; cursor:default; }
+#crumbPath { font-size:13px; white-space:nowrap; display:flex; align-items:center; gap:2px; overflow:hidden; }
+#crumbPath button { background:none; border:0; padding:6px 4px; cursor:pointer; color:var(--sub); min-height:36px; }
+#crumbPath button:hover { color:var(--txt); text-decoration:underline; }
+#crumbPath b { color:var(--txt); padding:0 4px; }
+#crumbPath i { color:var(--sub); font-style:normal; }
+.btn.icon { padding:8px 12px; font-size:16px; line-height:1; }
+#btnHome { display:none; }
+body:not([data-mode=overview]) #btnHome { display:inline-flex; align-items:center; }
+#cThumbBox { display:none; margin:10px 0 12px; }
+body[data-mode=section] #cThumbBox { display:block; }
+#cThumb { width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:10px; display:block; background:#0d1017; }
+#cThumbBox figcaption { font-size:11px; color:var(--sub); margin-top:5px; }
+#tipImg { display:block; width:224px; aspect-ratio:16/9; border-radius:6px; margin-bottom:5px; background:#0d1017; }
+#tipImg[hidden] { display:none; }
 #hint { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); font-size:12px; color:var(--sub); background:var(--panel); border:1px solid var(--line); padding:7px 14px; border-radius:999px; z-index:3; pointer-events:none; white-space:nowrap; }
 #tip { position:fixed; z-index:9; pointer-events:none; background:#000d; border:1px solid var(--line); padding:5px 9px; border-radius:8px; font-size:12px; }
 #loading { position:fixed; inset:0; display:grid; place-items:center; background:var(--bg); z-index:20; font-size:14px; color:var(--sub); }
 #panelToggle { display:none; }
 body:not([data-mode=overview]) #btnBack { display:inline-block; }
 #btnBack { display:none; }
-body[data-mode=seat] #panel { visibility:hidden; }
-body[data-mode=seat].panel-open #panel { visibility:visible; }
-body[data-mode=seat] #panelToggle { display:inline-block; }
+/* 구역·시야 화면에서는 좌석 찾기 패널을 접어 두고 버튼으로 연다 */
+body:not([data-mode=overview]) #panel { visibility:hidden; }
+body:not([data-mode=overview]).panel-open #panel { visibility:visible; }
+body:not([data-mode=overview]) #panelToggle { display:inline-block; }
 @media (max-width:760px) {
   header h1 small { display:none; }
   #panelToggle { display:inline-block; }
@@ -80,18 +101,26 @@ body[data-mode=seat] #panelToggle { display:inline-block; }
 @media (max-width:760px) {
   header h1 { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1; }
   header .sp { display:none; }
-  body[data-mode=seat] header h1 { visibility:hidden; }
-  body[data-mode=seat] #hint { display:none; }
+  body:not([data-mode=overview]) header h1 { visibility:hidden; }
+  body:not([data-mode=overview]) #hint { display:none; }
+  body:not([data-mode=overview]) #tourLink { display:none; }
+  #mini { left:10px; bottom:auto; top:108px; width:86px; height:86px; }
+  #crumb .btn { padding:6px 8px; }
+  /* 구역 화면 카드: 미리보기를 옆에 붙인 낮은 카드 */
+  body[data-mode=section] #card { padding:10px 12px; overflow:hidden; }
+  body[data-mode=section] #cStats, body[data-mode=section] #cSub, body[data-mode=section] #card .row:last-child, body[data-mode=section] #cThumbBox figcaption { display:none; }
+  body[data-mode=section] #cThumbBox { float:right; width:44%; margin:0 0 0 10px; }
+  body[data-mode=section] #cTitle { font-size:18px; margin:6px 0 0; }
+  body:not([data-mode=overview]) #panel { max-height:62%; }
   /* 시야 화면: 카드를 접어서 구역·가격과 방향 버튼만 표시 */
   body[data-mode=seat] #cardToggle { display:inline-flex; align-items:center; position:absolute; right:10px; top:8px; min-height:36px; padding:4px 12px; font-size:12px; }
   body[data-mode=seat] #card:not(.open) { padding:8px 10px; }
-  body[data-mode=seat] #card:not(.open) #mini, body[data-mode=seat] #card:not(.open) #cSub, body[data-mode=seat] #card:not(.open) #cStats,
+  body[data-mode=seat] #card:not(.open) #cSub, body[data-mode=seat] #card:not(.open) #cStats,
   body[data-mode=seat] #card:not(.open) #cGrade, body[data-mode=seat] #card:not(.open) .row:last-child { display:none; }
   body[data-mode=seat] #card:not(.open) #cTitle { display:inline; font-size:15px; margin:0 8px 0 0; }
   body[data-mode=seat] #card:not(.open) #cPrice { display:inline; font-size:14px; margin:0; }
   body[data-mode=seat] #card:not(.open) .row { margin:8px 0 0 !important; }
   body[data-mode=seat] #card:not(.open) .row .btn { min-height:38px; padding:4px; }
-  body[data-mode=seat] #card.open #mini { top:52px; width:64px; height:64px; }
 }
 @media (prefers-reduced-motion:reduce) { #panel { transition:none !important; } }
 </style>
@@ -102,11 +131,20 @@ body[data-mode=seat] #panelToggle { display:inline-block; }
 
 <header>
   <button class="btn" id="btnBack">← 뒤로</button>
+  <button class="btn icon" id="btnHome" title="전체 보기" aria-label="전체 보기로 돌아가기">⌂</button>
   <h1>고척스카이돔 3D 시야<small>좌석을 고르면 그 자리에서 보는 그라운드를 보여줍니다</small></h1>
   <div class="sp"></div>
   <a class="btn" id="tourLink" href="https://players.cupix.com/s/coef1TH7.html" target="_blank" rel="noopener" title="서울시설공단 공개 가상투어(Cupix)를 새 창에서 엽니다">실제 360° 투어 ↗</a>
+  <button class="btn icon" id="btnFull" title="전체 화면" aria-label="전체 화면 전환">⛶</button>
   <button class="btn" id="panelToggle" aria-expanded="false" aria-controls="panel">좌석 찾기</button>
 </header>
+
+<nav id="crumb" aria-label="현재 위치">
+  <button class="btn" id="navL" aria-label="왼쪽 옆 구역"></button>
+  <span id="crumbPath"></span>
+  <button class="btn" id="navR" aria-label="오른쪽 옆 구역"></button>
+</nav>
+<canvas id="mini" width="220" height="220" role="img" aria-label="경기장 미니맵. 누르면 그 위치의 구역으로 이동합니다. 구역은 좌석 찾기 패널에서도 고를 수 있습니다."></canvas>
 
 <aside id="panel" aria-label="좌석 찾기">
   <h2>좌석 바로 찾기</h2>
@@ -122,13 +160,13 @@ body[data-mode=seat] #panelToggle { display:inline-block; }
 </aside>
 
 <section id="card" aria-label="선택한 좌석 정보" aria-live="polite" hidden>
-  <canvas id="mini" width="184" height="184" aria-hidden="true"></canvas>
   <button class="btn" id="cardToggle" aria-expanded="false" aria-controls="card">자세히</button>
   <span id="cGrade"></span>
   <div id="cTitle"></div>
   <div id="cSub"></div>
   <div id="cPrice"></div>
   <div id="cStats"></div>
+  <figure id="cThumbBox"><img id="cThumb" alt="이 구역 중앙 좌석에서 본 시야 미리보기"><figcaption>구역 중앙에서 본 시야 · 좌석을 누르면 그 자리로 이동</figcaption></figure>
   <div class="row seatOnly" style="margin-bottom:6px">
     <button class="btn" data-look="home">홈</button>
     <button class="btn" data-look="mound">마운드</button>
@@ -137,13 +175,13 @@ body[data-mode=seat] #panelToggle { display:inline-block; }
   </div>
   <div class="row">
     <button class="btn" id="btnAll">전체 보기</button>
-    <button class="btn seatOnly" id="btnCrowd" aria-pressed="true">관중 숨기기</button>
+    <button class="btn seatOnly" id="btnCrowd" aria-pressed="false">관중 보이기</button>
     <button class="btn seatOnly" id="btnShare">시야 링크 공유</button>
   </div>
 </section>
 
 <div id="hint"></div>
-<div id="tip" aria-hidden="true" hidden></div>
+<div id="tip" aria-hidden="true" hidden><img id="tipImg" alt=""><span id="tipTxt"></span></div>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>
