@@ -1,5 +1,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../vendor/OrbitControls.js';
+import { EffectComposer } from '../vendor/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from '../vendor/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from '../vendor/jsm/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from '../vendor/jsm/postprocessing/ShaderPass.js';
+import { OutputPass } from '../vendor/jsm/postprocessing/OutputPass.js';
+import { RoomEnvironment } from '../vendor/jsm/environments/RoomEnvironment.js';
 import { SPEC, GRADES } from './data.js';
 import { buildStadium, R0, P } from './stadium.js';
 
@@ -8,12 +14,19 @@ const canvas = $('#scene');
 const isMobile = matchMedia('(max-width: 760px)').matches;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.shadowMap.autoUpdate = false;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b0e14);
-scene.add(new THREE.HemisphereLight(0xffffff, 0x555a66, 1.9));
-const sun = new THREE.DirectionalLight(0xffffff, 1.5); sun.position.set(40, 120, 30); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xf4f7ff, 0x6b6f66, 1.55));
+const sun = new THREE.DirectionalLight(0xfff6e8, 2.1); sun.position.set(25, 150, -30); sun.target.position.set(0, 0, -50);
+sun.castShadow = true; sun.shadow.mapSize.setScalar(isMobile ? 2048 : 4096);
+Object.assign(sun.shadow.camera, { left: -135, right: 135, top: 135, bottom: -135, near: 20, far: 260 });
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.06; sun.shadow.radius = 5;
+scene.add(sun, sun.target);
+{ const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.3; pm.dispose(); }
+const HAZE = new THREE.FogExp2(0xc9d2da, 0.0016);
 
 const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 900);
 const orbit = new OrbitControls(camera, canvas);
@@ -21,14 +34,34 @@ orbit.target.set(0, 4, -52); orbit.enableDamping = true; orbit.maxPolarAngle = M
 orbit.minDistance = 40; orbit.maxDistance = 420; orbit.enablePan = false;
 
 const maxTex = renderer.capabilities.maxTextureSize;
-const st = buildStadium(scene, { fieldTexSize: isMobile || maxTex < 4096 ? 2048 : 4096 });
+const st = buildStadium(scene, { fieldTexSize: isMobile || maxTex < 4096 ? 2048 : 4096, lite: isMobile });
 const { sections } = st;
 const byId = Object.fromEntries(sections.map((s) => [s.id, s]));
 const HOME_VIEW = new THREE.Vector3(0, 190, 122);
 camera.position.copy(HOME_VIEW);
 
+// ── 후처리: 블룸 + 톤매핑 + 비네트/그레인 ──
+const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: isMobile ? 0 : 4 });
+const composer = new EffectComposer(renderer, rt);
+composer.setPixelRatio(Math.min(devicePixelRatio, 2));
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.38, 0.7, 1.35));
+composer.addPass(new OutputPass());
+const grade = new ShaderPass({
+  uniforms: { tDiffuse: { value: null }, time: { value: 0 }, amt: { value: 0 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float time, amt; varying vec2 vUv;
+    float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)) + time) * 43758.5453); }
+    void main(){ vec4 c = texture2D(tDiffuse, vUv); vec2 q = vUv - 0.5;
+      float v = smoothstep(0.95, 0.25, length(q * vec2(1.0, 0.85)));
+      c.rgb *= mix(1.0, 0.72 + 0.28 * v, amt);
+      c.rgb = mix(c.rgb, c.rgb * vec3(1.03, 1.0, 0.96), amt);
+      c.rgb += (h(gl_FragCoord.xy) - 0.5) * 0.035 * amt; gl_FragColor = c; }`,
+});
+composer.addPass(grade);
+
 // ── 상태 ─────────────────────────────────────────────
-const state = { mode: 'overview', section: null, seat: null, seatIdx: -1, hover: null, filter: null, weekend: false };
+const state = { crowd: true, mode: 'overview', section: null, seat: null, seatIdx: -1, hover: null, filter: null, weekend: false };
 const YELLOW = new THREE.Color(0xffd400), GRAY = new THREE.Color(0x4a4d55), tmpC = new THREE.Color();
 
 function paint(s) {
@@ -64,7 +97,13 @@ function stepTween(now) {
 
 function clearHover() { const o = state.hover; state.hover = null; if (o) paint(o); $('#tip').hidden = true; }
 function setHash(h) { history.replaceState(null, '', h || location.pathname + location.search); }
-function shell(on) { st.roof.visible = on; st.wall.visible = on; }
+function shell(on) { st.shell.visible = on; scene.fog = on ? HAZE : null; }
+let hiddenP = null;
+const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
+function hideOwnPerson(s, seat) {
+  if (hiddenP) { const { p, i } = hiddenP; for (const m of [p.bodies, p.heads]) { m.setMatrixAt(i, p.mats[i]); m.instanceMatrix.needsUpdate = true; } hiddenP = null; }
+  if (s && seat.pi >= 0) { const p = s.people; for (const m of [p.bodies, p.heads]) { m.setMatrixAt(seat.pi, ZERO); m.instanceMatrix.needsUpdate = true; } hiddenP = { p, i: seat.pi }; }
+}
 
 function goOverview() {
   state.mode = 'overview'; const prev = state.section; state.section = null; state.seat = null; state.seatIdx = -1;
@@ -92,6 +131,7 @@ function goSeat(s, idx, lookKey = 'mound') {
   const prev = state.section; state.mode = 'seat'; state.section = s; state.seatIdx = idx; state.seat = s.seats[idx];
   if (prev && prev !== s) paint(prev); clearHover(); paint(s);
   shell(true); st.labels.visible = false;
+  hideOwnPerson(s, state.seat);
   const eye = seatEye(state.seat), look = LOOKS[lookKey];
   const dir = look.clone().sub(eye).normalize();
   pov.yaw = Math.atan2(-dir.x, -dir.z); pov.pitch = Math.asin(dir.y); pov.fov = 62;
@@ -203,6 +243,7 @@ function syncPicker() {
 }
 function syncUI() {
   document.body.dataset.mode = state.mode; $('#tip').hidden = true;
+  st.crowd.visible = state.mode === 'seat' && state.crowd; st.net.visible = state.mode !== 'overview';
   const s = state.section, card = $('#card');
   syncPicker();
   if (!s) { card.hidden = true; $('#hint').textContent = '구역을 눌러 좌석을 선택하세요 · 드래그로 회전, 휠/핀치로 확대'; return; }
@@ -246,6 +287,7 @@ $('#btnView').onclick = () => { const i = seatFromPicker(); if (i >= 0) goSeat(s
 $('#selNum').onchange = () => { if (state.mode === 'seat') $('#btnView').onclick(); };
 $('#btnBack').onclick = () => (state.mode === 'seat' ? goSection(state.section) : goOverview());
 $('#btnAll').onclick = goOverview;
+$('#btnCrowd').onclick = () => { state.crowd = !state.crowd; $('#btnCrowd').textContent = state.crowd ? '관중 숨기기' : '관중 보이기'; $('#btnCrowd').setAttribute('aria-pressed', state.crowd); syncUI(); };
 document.querySelectorAll('[data-look]').forEach((b) => (b.onclick = () => lookAtKey(b.dataset.look)));
 $('#dayToggle').onclick = () => { state.weekend = !state.weekend; $('#dayToggle').textContent = state.weekend ? '주말 요금' : '평일 요금'; $('#dayToggle').setAttribute('aria-pressed', state.weekend); buildLegend(); syncUI(); };
 $('#btnShare').onclick = async () => {
@@ -273,7 +315,7 @@ function fromHash() {
 
 function resize() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
-  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  renderer.setSize(w, h, false); composer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
   HOME_VIEW.set(0, 190, 122).multiplyScalar(camera.aspect < 0.8 ? 1.75 : 1);
 }
 addEventListener('resize', resize);
@@ -283,11 +325,14 @@ buildLegend(); buildPicker(); resize(); camera.position.copy(HOME_VIEW); camera.
 shell(false); syncUI();
 $('#seatTotal').textContent = st.total.toLocaleString();
 if (!fromHash()) { camera.position.set(0, 330, 260); flyTo(HOME_VIEW, orbit.target, 50, 1800, () => { orbit.enabled = true; }); }
+renderer.shadowMap.needsUpdate = true;
 $('#loading').remove();
 window.__app = { state, sections, goSection, goSeat, goOverview, st, camera };
 
 renderer.setAnimationLoop((now) => {
   stepTween(now);
   if (orbit.enabled && state.mode !== 'seat' && !tween) orbit.update();
-  renderer.render(scene, camera);
+  grade.uniforms.time.value = (now % 1000) / 1000; grade.uniforms.amt.value = state.mode === 'seat' ? 1 : 0.35;
+  st.ledTex.offset.x = (now * 0.000012) % 1;
+  composer.render();
 });
