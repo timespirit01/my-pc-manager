@@ -46,7 +46,7 @@ export function R0(phiDeg) {
 }
 const inW = (phi) => smooth(62, 76, Math.abs(wrap180(phi)));      // 0=외야, 1=내야
 const Dout = (phi) => 21 + (32 - 21) * inW(phi);                  // 외벽 위치
-const Ywall = () => 31;                                           // 외벽(지붕 시작) 높이
+const Ywall = () => 33;                                           // 외벽(지붕 시작) 높이
 
 export function P(phi, d, y, out = new THREE.Vector3()) {
   const R = R0(phi) + d, p = phi * D2R;
@@ -115,21 +115,25 @@ const FIELD = 300;
 function fieldTexture(size, polePts) {
   return canvasTex(size, size, (g) => {
     const s = size / FIELD, X = (x) => (x + FIELD / 2) * s, Z = (z) => (z - CZ + FIELD / 2) * s;
-    g.fillStyle = '#356f33'; g.fillRect(0, 0, size, size);
+    const RED = '#963a36';                                   // 파울 지역·워닝트랙: 붉은 인조잔디 (가상투어 확인)
+    g.fillStyle = RED; g.fillRect(0, 0, size, size);
+    g.save(); g.beginPath(); g.moveTo(X(0), Z(2.2)); g.lineTo(X(112), Z(-109.8)); g.lineTo(X(112), Z(-200)); g.lineTo(X(-112), Z(-200)); g.lineTo(X(-112), Z(-109.8)); g.closePath(); g.clip();
+    g.fillStyle = '#3f8436'; g.fillRect(0, 0, size, size);
     // 잔디 결(교차 줄무늬)
-    g.save(); g.translate(X(0), Z(0)); g.rotate(Math.PI / 4);
+    g.translate(X(0), Z(0)); g.rotate(Math.PI / 4);
     for (let i = -40; i < 40; i++) {
       g.fillStyle = i % 2 ? 'rgba(255,255,255,0.045)' : 'rgba(0,0,0,0.04)'; g.fillRect(i * 5 * s, -220 * s, 5 * s, 440 * s);
       g.fillStyle = i % 2 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'; g.fillRect(-220 * s, i * 5 * s, 440 * s, 5 * s);
     }
     g.restore();
     const path = () => { g.beginPath(); for (let i = 0; i <= N; i++) { const p = P((i / N) * 360, 0, 0); i ? g.lineTo(X(p.x), Z(p.z)) : g.moveTo(X(p.x), Z(p.z)); } g.closePath(); };
-    const dirt = '#9c6a44';
-    path(); g.strokeStyle = dirt; g.lineWidth = 9 * s; g.stroke();   // 워닝트랙
+    const dirt = '#b9783f';
+    g.fillStyle = '#3a7d33'; g.beginPath(); g.arc(X(0), Z(0), 8.5 * s, 0, 7); g.fill();          // 홈 주변 잔디 원
+    path(); g.strokeStyle = RED; g.lineWidth = 9 * s; g.stroke();   // 워닝트랙
     g.save(); g.beginPath(); g.moveTo(X(0), Z(3)); g.lineTo(X(60), Z(-57)); g.lineTo(X(-60), Z(-57)); g.closePath(); g.clip();
     g.fillStyle = dirt; g.beginPath(); g.arc(X(0), Z(-SPEC.mound), 29 * s, 0, 7); g.fill(); g.restore();
     const b = SPEC.base / Math.SQRT2;
-    g.fillStyle = '#3a7a37'; g.beginPath(); g.moveTo(X(0), Z(-2.4)); g.lineTo(X(b - 1.7), Z(-b)); g.lineTo(X(0), Z(-2 * b + 2.4)); g.lineTo(X(-b + 1.7), Z(-b)); g.closePath(); g.fill();
+    g.fillStyle = '#44893a'; g.beginPath(); g.moveTo(X(0), Z(-2.4)); g.lineTo(X(b - 1.7), Z(-b)); g.lineTo(X(0), Z(-2 * b + 2.4)); g.lineTo(X(-b + 1.7), Z(-b)); g.closePath(); g.fill();
     g.fillStyle = dirt;
     g.beginPath(); g.arc(X(0), Z(0), 4 * s, 0, 7); g.fill();
     g.beginPath(); g.arc(X(0), Z(-SPEC.mound), 2.74 * s, 0, 7); g.fill();
@@ -214,8 +218,8 @@ function makePlayer(jersey, pants, { crouch = 0, bat = false, cap = 0x7a1634 } =
 // ── 경기장 생성 ───────────────────────────────────────
 export function buildStadium(scene, { fieldTexSize = 4096, lite = false } = {}) {
   const root = new THREE.Group(); scene.add(root);
-  const concTex = canvasTex(256, 256, (g, w, h) => { g.fillStyle = '#c4c6c8'; g.fillRect(0, 0, w, h); noise(g, w, h, 0.16, 11); }, [0.4, 0.4]);
-  const concrete = new THREE.MeshStandardMaterial({ color: 0xb4b7ba, map: concTex, roughness: 0.95, side: THREE.DoubleSide });
+  const concTex = canvasTex(256, 256, (g, w, h) => { g.fillStyle = '#d2cdc0'; g.fillRect(0, 0, w, h); noise(g, w, h, 0.14, 11); }, [0.4, 0.4]);
+  const concrete = new THREE.MeshStandardMaterial({ color: 0xc9c5ba, map: concTex, roughness: 0.95, side: THREE.DoubleSide });
   const dark = new THREE.MeshStandardMaterial({ color: 0x24272c, roughness: 0.9, side: THREE.DoubleSide });
   const steel = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.45, metalness: 0.7, side: THREE.DoubleSide });
   const glass = new THREE.MeshStandardMaterial({ color: 0x20364f, roughness: 0.08, metalness: 0.6, side: THREE.DoubleSide });
@@ -241,8 +245,8 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false } = {}) 
 
   // 펜스 / 내야 벽 + 광고
   const fenceH = (phi) => 1.0 + (SPEC.fenceHeight - 1.0) * (1 - smooth(71, 77, Math.abs(wrap180(phi))));
-  const G = '#17402a', NV = '#14254a';
-  const ofAds = adTexture(G, [['SKY DOME', G, '#fff'], ['SEOUL', '#fff', '#17402a'], ['BASEBALL', G, '#ffd24a'], ['GOCHEOK', '#c8102e', '#fff'], ['PLAY BALL', G, '#fff'], ['DOME', '#0b3d91', '#fff']], 256);
+  const G = '#16264d', NV = '#14254a';
+  const ofAds = adTexture(G, [['SKY DOME', G, '#fff'], ['SEOUL', '#fff', '#16264d'], ['BASEBALL', G, '#ffd24a'], ['GOCHEOK', '#c8102e', '#fff'], ['PLAY BALL', G, '#fff'], ['DOME', '#0b3d91', '#fff']], 256);
   const inAds = adTexture(NV, [['GOCHEOK SKY DOME', NV, '#fff'], ['SEOUL', '#fff', '#14254a'], ['PLAY BALL', NV, '#ffd24a'], ['BASEBALL', '#c8102e', '#fff']], 96);
   const padM = (tex) => new THREE.MeshStandardMaterial({ map: tex, roughness: 0.75, side: THREE.DoubleSide });
   let b = buf(); sweep(b, -71, 71, [[0, 0], [0, 4]], { step: 1, vScale: 4, uScale: 60 }); root.add(meshFrom(b, padM(ofAds)));
@@ -284,7 +288,8 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false } = {}) 
   sweep(dB, 78, 282, [[i3.dEnd + 1.2, i3.yEnd + 2.6], [i3.dEnd + 1.2, 15.9]]);
   sweep(dB, -70, 70, [[o2.dEnd + 1.2, o2.yEnd + 2.6], [o2.dEnd + 1.2, 11.3]]);
   sweep(cB, 78, 282, [[i4.dEnd + 1.2, i4.yEnd + 2.6], [(p) => Dout(p), i4.yEnd + 2.6]]);
-  sweep(cB, -70, 70, [[o4.dEnd + 1.2, o4.yEnd + 2.6], [(p) => Dout(p), o4.yEnd + 2.6]]);
+  sweep(cB, -30, 30, [[o4.dEnd + 1.2, o4.yEnd + 2.6], [(p) => Dout(p), o4.yEnd + 2.6]]);
+  sweep(dB, -70, -30, [[o2.dEnd + 1.2, 11.3], [o2.dEnd + 3, 11.3], [o2.dEnd + 3, 33]]); sweep(dB, 30, 70, [[o2.dEnd + 1.2, 11.3], [o2.dEnd + 3, 11.3], [o2.dEnd + 3, 33]]);
   for (const [a, e] of [[70, 78], [282, 290]]) sweep(dB, a, e, [[0.3, fenceH], [0.3, 9], [6, 9], [6, 20], [(p) => Dout(p), 20]]);
   root.add(meshFrom(cB, concrete, { cast: true }), meshFrom(dB, dark, { cast: true }), meshFrom(rail, steel));
   const ledTex = canvasTex(2048, 64, (g, w, h) => {
@@ -317,33 +322,43 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false } = {}) 
   const shellMat = new THREE.MeshStandardMaterial({ color: 0x6f747b, roughness: 0.9, side: THREE.DoubleSide });
   b = buf(); sweep(b, 0, 360, [[(p) => Dout(p), 0], [(p) => Dout(p), (p) => Ywall(p)]], { step: 2 });
   const wall = meshFrom(b, shellMat); root.add(wall);
-  const roofTex = canvasTex(512, 512, (g, w, h) => {
-    const gr = g.createRadialGradient(w / 2, h / 2, 20, w / 2, h / 2, w * 0.7); gr.addColorStop(0, '#f6f8fa'); gr.addColorStop(1, '#cfd6dc');
-    g.fillStyle = gr; g.fillRect(0, 0, w, h);
-    g.strokeStyle = '#7b848d'; g.lineWidth = 26; g.strokeRect(0, 0, w, h);          // 주 트러스
-    g.strokeStyle = '#e9edf0'; g.lineWidth = 6; g.strokeRect(0, 0, w, h);
-    g.strokeStyle = 'rgba(110,120,130,0.55)'; g.lineWidth = 5;
-    g.beginPath(); g.moveTo(0, 0); g.lineTo(w, h); g.moveTo(w, 0); g.lineTo(0, h); g.moveTo(w / 2, 0); g.lineTo(w / 2, h); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
-    noise(g, w, h, 0.05, 5);
+  const TM = 0.64;                                        // 이 안쪽은 반투명 막, 바깥은 철골 트러스 (가상투어 확인)
+  const memTex = canvasTex(512, 512, (g, w, h) => {
+    g.fillStyle = '#f3e3e1'; g.fillRect(0, 0, w, h);
+    g.strokeStyle = '#a995b8'; g.lineWidth = 26; for (let x = 0; x <= w; x += w / 2) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
+    g.strokeStyle = 'rgba(150,130,160,0.7)'; g.lineWidth = 14; for (let y = 0; y <= h; y += h / 2) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+    g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, 0); g.lineTo(w, h); g.moveTo(w, 0); g.lineTo(0, h); g.stroke();
   }, [1, 1]);
-  const rp = [], ruv = [], rc = [], NA = 96, NT = 18, H = SPEC.roofHeight;
-  const rv = (i, j) => {
-    const phi = (i / NA) * 360, t = j / NT, R = t * (R0(phi) + Dout(phi)), yw = Ywall(phi);
-    rp.push(R * Math.sin(phi * D2R), yw + (H - yw) * (1 - t * t), CZ - R * Math.cos(phi * D2R)); ruv.push(i / 3, j);
-    const k = 0.72 + 0.42 * (1 - t * t); rc.push(k, k, k * 1.02);                    // 중앙이 더 밝게 비치는 막
+  const trussTex = canvasTex(512, 512, (g, w, h) => {
+    g.fillStyle = '#3d3b38'; g.fillRect(0, 0, w, h);
+    g.strokeStyle = '#a9aaa8'; g.lineWidth = 9; g.strokeRect(0, 0, w, h);
+    g.lineWidth = 5; g.beginPath();
+    for (let k = 0; k <= 2; k++) { g.moveTo(k * w / 2, 0); g.lineTo(k * w / 2, h); g.moveTo(0, k * h / 2); g.lineTo(w, k * h / 2); }
+    g.moveTo(0, 0); g.lineTo(w, h); g.moveTo(w, 0); g.lineTo(0, h); g.moveTo(w / 2, 0); g.lineTo(0, h / 2); g.lineTo(w / 2, h); g.lineTo(w, h / 2); g.closePath(); g.stroke();
+    noise(g, w, h, 0.1, 5);
+  }, [1, 1]);
+  const NA = 96, H = SPEC.roofHeight;
+  const roofPart = (t0, t1, NT, tex, bright) => {
+    const rp = [], ruv = [];
+    const rv = (i, j) => {
+      const phi = (i / NA) * 360, t = t0 + (t1 - t0) * (j / NT), R = t * (R0(phi) + Dout(phi)), yw = Ywall(phi);
+      rp.push(R * Math.sin(phi * D2R), yw + (H - yw) * (1 - t * t), CZ - R * Math.cos(phi * D2R)); ruv.push(i / 3, t * 9);
+    };
+    for (let i = 0; i < NA; i++) for (let j = 0; j < NT; j++) { rv(i, j); rv(i + 1, j); rv(i + 1, j + 1); rv(i, j); rv(i + 1, j + 1); rv(i, j + 1); }
+    const rg = new THREE.BufferGeometry();
+    rg.setAttribute('position', new THREE.Float32BufferAttribute(rp, 3)); rg.setAttribute('uv', new THREE.Float32BufferAttribute(ruv, 2));
+    const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, fog: false }); mat.color.setScalar(bright);
+    return new THREE.Mesh(rg, mat);
   };
-  for (let i = 0; i < NA; i++) for (let j = 0; j < NT; j++) { rv(i, j); rv(i + 1, j); rv(i + 1, j + 1); rv(i, j); rv(i + 1, j + 1); rv(i, j + 1); }
-  const rg = new THREE.BufferGeometry();
-  rg.setAttribute('position', new THREE.Float32BufferAttribute(rp, 3)); rg.setAttribute('uv', new THREE.Float32BufferAttribute(ruv, 2)); rg.setAttribute('color', new THREE.Float32BufferAttribute(rc, 3));
-  const roof = new THREE.Mesh(rg, new THREE.MeshBasicMaterial({ map: roofTex, side: THREE.DoubleSide, vertexColors: true, fog: false }));
+  const roof = new THREE.Group(); roof.add(roofPart(0, TM, 10, memTex, 1.12), roofPart(TM, 1, 8, trussTex, 0.9));
   root.add(roof);
 
   // 조명 뱅크(지붕 아래 링) — 발광체, 블룸으로 번짐
   const lampMat = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false }); lampMat.color.setRGB(7, 6.8, 6.2);
   const rigMat = new THREE.MeshStandardMaterial({ color: 0x30343a, roughness: 0.6, metalness: 0.5 });
   const lamps = [], rigs = [], Mx = new THREE.Matrix4(), O = new THREE.Object3D();
-  for (const [t, stepA, off] of [[0.74, 9, 0], [0.5, 15, 7]]) for (let a = off; a < 360; a += stepA) {
-    const R = t * (R0(a) + Dout(a)), y = 31 + (H - 31) * (1 - t * t) - 2.2;
+  for (const [t, stepA, off] of [[0.78, 9, 0], [0.68, 12, 5]]) for (let a = off; a < 360; a += stepA) {
+    const R = t * (R0(a) + Dout(a)), y = 33 + (H - 33) * (1 - t * t) - 2.2;
     O.position.set(R * Math.sin(a * D2R), y, CZ - R * Math.cos(a * D2R)); O.lookAt(0, 0, CZ * 0.9); O.updateMatrix();
     lamps.push(O.matrix.clone()); rigs.push(O.matrix.clone());
   }
@@ -377,9 +392,9 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false } = {}) 
     P(phi, d, y, m.position); m.lookAt(0, y - 6, CZ * 0.6); root.add(m);
     const f = new THREE.Mesh(new THREE.BoxGeometry(spec.w + 1, spec.h + 1, 0.6), dark); f.position.copy(m.position); f.quaternion.copy(m.quaternion); f.translateZ(-0.4); root.add(f);
   };
-  mkBoard(0, o4.dEnd + 0.6, 26.2, SPEC.mainBoard, 'main');
-  mkBoard(74, 10, 25, SPEC.twinBoard, 'HOME');
-  mkBoard(-74, 10, 25, SPEC.twinBoard, 'AWAY');
+  mkBoard(0, o4.dEnd + 0.6, 28.4, SPEC.mainBoard, 'main');
+  mkBoard(47, o2.dEnd + 2.6, 20, SPEC.twinBoard, 'HOME');       // 쌍둥이 전광판: 중앙 상단 스탠드 좌우 (가상투어 확인)
+  mkBoard(-47, o2.dEnd + 2.6, 20, SPEC.twinBoard, 'AWAY');
 
   // ── 좌석 (접이식: 등받이 + 접힌 좌판 + 브래킷) ──
   const seatGeo = merge([
@@ -431,7 +446,7 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false } = {}) 
       }
     }
     const mesh = new THREE.InstancedMesh(seatGeo, seatMat, s.seats.length);
-    s.color = new THREE.Color(s.g.color);
+    s.color = new THREE.Color(s.g.color); s.realColor = new THREE.Color(s.real);
     const occ = (lite ? 0.38 : 0.62) * (t.floor <= 2 && t.zone === '내야' ? 1.2 : t.floor === 4 ? 0.8 : 1);
     const pm = [], pc = [], hc = [];
     s.seats.forEach((st, i) => {

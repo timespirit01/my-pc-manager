@@ -67,7 +67,7 @@ const YELLOW = new THREE.Color(0xffd400), GRAY = new THREE.Color(0x4a4d55), tmpC
 function paint(s) {
   const dim = state.filter && state.filter !== s.grade;
   const hot = state.hover === s || (state.section === s && state.mode === 'section');
-  tmpC.copy(dim ? GRAY : s.color); if (hot && !dim) tmpC.lerp(new THREE.Color(0xffffff), 0.22);
+  tmpC.copy(dim ? GRAY : state.mode === 'seat' ? s.realColor : s.color); if (hot && !dim) tmpC.lerp(new THREE.Color(0xffffff), 0.22);
   for (let i = 0; i < s.seats.length; i++) s.mesh.setColorAt(i, tmpC);
   if (state.section === s && state.seatIdx >= 0) s.mesh.setColorAt(state.seatIdx, YELLOW);
   s.mesh.instanceColor.needsUpdate = true;
@@ -124,7 +124,7 @@ function goSection(s) {
 
 const LOOKS = {
   home: new THREE.Vector3(0, 1, -6), mound: new THREE.Vector3(0, 1, -SPEC.mound),
-  board: P(0, 14, 26).clone(), field: new THREE.Vector3(0, 0, -45),
+  board: P(0, 19, 28).clone(), field: new THREE.Vector3(0, 0, -45),
 };
 function seatEye(seat) { return new THREE.Vector3(seat.x, seat.y + 1.14, seat.z); }
 function goSeat(s, idx, lookKey = 'mound') {
@@ -244,6 +244,7 @@ function syncPicker() {
 function syncUI() {
   document.body.dataset.mode = state.mode; $('#tip').hidden = true;
   st.crowd.visible = state.mode === 'seat' && state.crowd; st.net.visible = state.mode !== 'overview';
+  if ((state.mode === 'seat') !== syncUI.wasSeat) { syncUI.wasSeat = state.mode === 'seat'; sections.forEach(paint); }   // 시야 화면에서는 실제 좌석 색
   const s = state.section, card = $('#card');
   syncPicker();
   if (!s) { card.hidden = true; $('#hint').textContent = '구역을 눌러 좌석을 선택하세요 · 드래그로 회전, 휠/핀치로 확대'; return; }
