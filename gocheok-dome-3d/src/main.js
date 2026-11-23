@@ -8,6 +8,7 @@ import { OutputPass } from '../vendor/jsm/postprocessing/OutputPass.js';
 import { RoomEnvironment } from '../vendor/jsm/environments/RoomEnvironment.js';
 import { SPEC, GRADES } from './data.js';
 import { buildStadium, R0, P } from './stadium.js';
+import { createPlan } from './plan.js';
 
 const $ = (q) => document.querySelector(q);
 const canvas = $('#scene');
@@ -19,7 +20,7 @@ renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadow
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b0e14);
-scene.add(new THREE.HemisphereLight(0xf4f7ff, 0x6b6f66, 1.55));
+const hemi = new THREE.HemisphereLight(0xf4f7ff, 0x6b6f66, 1.55); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff6e8, 2.1); sun.position.set(25, 150, -30); sun.target.position.set(0, 0, -50);
 sun.castShadow = true; sun.shadow.mapSize.setScalar(isMobile ? 2048 : 4096);
 Object.assign(sun.shadow.camera, { left: -135, right: 135, top: 135, bottom: -135, near: 20, far: 260 });
@@ -61,7 +62,7 @@ const grade = new ShaderPass({
 composer.addPass(grade);
 
 // ── 상태 ─────────────────────────────────────────────
-const state = { crowd: false, mode: 'overview', section: null, seat: null, seatIdx: -1, hover: null, hoverSeat: -1, filter: null, weekend: false };
+const state = { event: 'baseball', auto: false, crowd: false, mode: 'overview', section: null, seat: null, seatIdx: -1, hover: null, hoverSeat: -1, filter: null, weekend: false };
 const WHITE = new THREE.Color(0xffffff), YELLOW = new THREE.Color(0xffd400), GRAY = new THREE.Color(0x4a4d55), tmpC = new THREE.Color();
 
 function paint(s) {
@@ -111,6 +112,7 @@ function hideOwnPerson(s, seat) {
 }
 
 function goOverview() {
+  setAuto(false);
   state.mode = 'overview'; const prev = state.section; state.section = null; state.seat = null; state.seatIdx = -1;
   if (prev) paint(prev); clearHover(); setHash(''); hideOwnPerson(null);
   shell(false); st.labels.visible = true;
@@ -154,10 +156,11 @@ function goSection(s, keepPanel = false) {
 
 const LOOKS = {
   home: new THREE.Vector3(0, 1, -6), mound: new THREE.Vector3(0, 1, -SPEC.mound),
-  board: P(0, 19, 28).clone(), field: new THREE.Vector3(0, 0, -45),
+  board: P(0, 19, 28).clone(), field: new THREE.Vector3(0, 0, -45), stage: new THREE.Vector3(0, 7, -96),
 };
+const defLook = () => (state.event === 'concert' ? 'stage' : 'mound');
 function seatEye(seat) { return new THREE.Vector3(seat.x, seat.y + 1.14, seat.z); }
-function goSeat(s, idx, lookKey = 'mound') {
+function goSeat(s, idx, lookKey = defLook()) {
   const prev = state.section; state.mode = 'seat'; state.section = s; state.seatIdx = idx; state.seat = s.seats[idx];
   if (prev && prev !== s) paint(prev); clearHover(); paint(s);
   shell(true); st.labels.visible = false;
@@ -211,7 +214,7 @@ canvas.addEventListener('pointermove', (e) => {
         pov.fov = THREE.MathUtils.clamp(pov.fov * (pinch0 / d), 12, 80); pinch0 = d;
       } else {
         const k = (pov.fov * Math.PI / 180) / canvas.clientHeight;
-        pov.yaw += (e.clientX - prev.clientX) * k; pov.pitch = THREE.MathUtils.clamp(pov.pitch + (e.clientY - prev.clientY) * k, -1.3, 1.3);
+        setAuto(false); pov.yaw += (e.clientX - prev.clientX) * k; pov.pitch = THREE.MathUtils.clamp(pov.pitch + (e.clientY - prev.clientY) * k, -1.3, 1.3);
       }
       applyPov();
     }
@@ -250,7 +253,7 @@ const tcv = document.createElement('canvas'); tcv.width = TW; tcv.height = TH; c
 function midSeat(s) { const rows = rowsOf(s), r = rows[Math.floor(rows.length / 2)], row = s.seats.filter((x) => x.row === r); return row[Math.floor(row.length / 2)]; }
 function thumb(s) {
   if (s.thumb) return s.thumb;
-  thumbCam.position.copy(seatEye(midSeat(s))); thumbCam.lookAt(LOOKS.mound);
+  thumbCam.position.copy(seatEye(midSeat(s))); thumbCam.lookAt(LOOKS[defLook()]);
   const sv = [st.shell.visible, st.labels.visible, st.crowd.visible, st.net.visible, rowLabels.visible, scene.fog];
   st.shell.visible = true; st.labels.visible = false; st.crowd.visible = false; st.net.visible = true; rowLabels.visible = false; scene.fog = HAZE;
   renderer.setRenderTarget(thumbRT); renderer.render(scene, thumbCam); renderer.readRenderTargetPixels(thumbRT, 0, 0, TW, TH, tbuf); renderer.setRenderTarget(null);
@@ -338,7 +341,7 @@ function syncPicker() {
 function syncUI() {
   document.body.dataset.mode = state.mode; $('#tip').hidden = true;
   setOffset();
-  st.crowd.visible = state.mode === 'seat' && state.crowd; st.net.visible = state.mode === 'seat'; rowLabels.visible = state.mode === 'section';
+  st.crowd.visible = state.mode === 'seat' && state.crowd; st.net.visible = state.mode === 'seat' && state.event !== 'concert'; rowLabels.visible = state.mode === 'section';
   if ((state.mode === 'seat') !== syncUI.wasSeat) { syncUI.wasSeat = state.mode === 'seat'; sections.forEach(paint); }   // 시야 화면에서는 실제 좌석 색
   const s = state.section, card = $('#card');
   syncPicker();
@@ -346,7 +349,8 @@ function syncUI() {
   card.hidden = false; syncCrumb(); drawMini();
   $('#cGrade').textContent = s.g.name; $('#cGrade').style.setProperty('--g', s.g.color);
   $('#cTitle').textContent = `${s.id}구역` + (state.seat ? ` ${state.seat.row}열 ${state.seat.num}번` : '');
-  $('#cSub').textContent = `${s.zone} ${s.floor}층 · ${s.side}` + (s.g.note ? ` · ${s.g.note}` : '');
+  const behind = state.event === 'concert' && s.zone === '외야' && Math.abs(mid(s)) < 40;
+  $('#cSub').textContent = `${s.zone} ${s.floor}층 · ${s.side}` + (s.g.note ? ` · ${s.g.note}` : '') + (behind ? ' · 무대 뒤(시야 제한)' : '');
   $('#cPrice').textContent = priceText(s.g);
   if (state.seat) {
     const e = seatEye(state.seat), dH = Math.hypot(e.x, e.z), dM = Math.hypot(e.x, e.z + SPEC.mound);
@@ -417,8 +421,44 @@ $('#btnShare').onclick = async () => {
 };
 $('#cardToggle').onclick = () => { const on = $('#card').classList.toggle('open'); $('#cardToggle').textContent = on ? '접기' : '자세히'; $('#cardToggle').setAttribute('aria-expanded', on); };
 $('#panelToggle').onclick = () => { const on = document.body.classList.toggle('panel-open'); $('#panelToggle').setAttribute('aria-expanded', on); if (on) $('#selSection').focus(); };
+// ── 행사 모드(야구/콘서트) ──
+function setEvent(ev) {
+  if (state.event === ev) return; state.event = ev; const c = ev === 'concert';
+  st.concert.visible = c; st.players.visible = !c;
+  hemi.intensity = c ? 0.55 : 1.55; sun.intensity = c ? 0.55 : 2.1; scene.environmentIntensity = c ? 0.12 : 0.3;
+  st.lampMat.color.setRGB(...(c ? [0.5, 0.5, 0.6] : [7, 6.8, 6.2]));
+  st.roof.children[0].material.color.setScalar(c ? 0.16 : 1.12); st.roof.children[1].material.color.setScalar(c ? 0.22 : 0.9);
+  HAZE.color.set(c ? 0x191b25 : 0xc9d2da); HAZE.density = c ? 0.0024 : 0.0016;
+  renderer.shadowMap.needsUpdate = true; sections.forEach((s) => (s.thumb = null));
+  document.body.dataset.event = ev;
+  document.querySelectorAll('#eventSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.ev === ev));
+  syncUI(); if (state.mode === 'seat') lookAtKey(defLook());
+}
+document.querySelectorAll('#eventSeg button').forEach((b) => (b.onclick = () => setEvent(b.dataset.ev)));
+
+// ── 옆자리·앞뒤 열 이동 ──
+function stepSeat(dNum, dRow) {
+  if (state.mode !== 'seat' || tween) return; const s = state.section, cur = state.seat; let q = null;
+  if (dNum) q = s.seats.find((x) => x.row === cur.row && x.num === cur.num + dNum);
+  else { const row = s.seats.filter((x) => x.row === cur.row + dRow); for (const x of row) if (!q || Math.abs(x.phi - cur.phi) < Math.abs(q.phi - cur.phi)) q = x; }
+  if (q) goSeat(s, s.seats.indexOf(q));
+}
+$('#stL').onclick = () => stepSeat(1, 0); $('#stR').onclick = () => stepSeat(-1, 0);      // 번호는 관중 기준 왼쪽으로 증가
+$('#stF').onclick = () => stepSeat(0, -1); $('#stB').onclick = () => stepSeat(0, 1);
+
+// ── 자동 둘러보기 ──
+function setAuto(on) { if (state.auto === on) return; state.auto = on; $('#btnAuto').setAttribute('aria-pressed', on); }
+$('#btnAuto').onclick = () => setAuto(!state.auto);
+
+// ── 좌석 배치도 / 정보 ──
+const plan = createPlan({ sections, P, polePts: st.polePts, centerZ: SPEC.centerZ, current: () => ({ section: state.section, seat: state.seat }), onPick: (s, i) => { plan.close(); closePanel(); goSeat(s, i); } });
+$('#btnPlan').onclick = () => plan.open(); $('#btnPick').onclick = () => plan.open();
+$('#btnInfo').onclick = () => $('#infoDlg').showModal();
+$('#infoClose').onclick = () => $('#infoDlg').close();
+$('#infoDlg').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+
 addEventListener('keydown', (e) => {
-  if (/^(SELECT|INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+  if (/^(SELECT|INPUT|TEXTAREA)$/.test(e.target.tagName) || document.querySelector('dialog[open]')) return;
   if (e.key === 'Escape') $('#btnBack').click();
   if (state.mode === 'seat' && !tween && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
     const s = state.section, cur = state.seat, n = cur.num + (e.key === 'ArrowRight' ? -1 : 1);   // 번호는 관중 기준 왼쪽으로 증가
@@ -433,6 +473,7 @@ function fromHash() {
   const i = s.seats.findIndex((x) => x.row === +m[2] && x.num === +m[3]); if (i < 0) return false;
   goSeat(s, i); return true;
 }
+let lastT = 0;
 
 function resize() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -448,11 +489,13 @@ $('#seatTotal').textContent = st.total.toLocaleString();
 if (!fromHash()) { camera.position.set(0, 330, 260); flyTo(HOME_VIEW, orbit.target, 50, 1800, () => { orbit.enabled = true; }); }
 renderer.shadowMap.needsUpdate = true;
 $('#loading').remove();
-window.__app = { state, sections, goSection, goSeat, goOverview, goNeighbor, neighbor, thumb, st, camera };
+window.__app = { setEvent, plan, state, sections, goSection, goSeat, goOverview, goNeighbor, neighbor, thumb, st, camera };
 
 renderer.setAnimationLoop((now) => {
   stepTween(now);
   if (orbit.enabled && state.mode !== 'seat' && !tween) orbit.update();
+  if (state.auto && state.mode === 'seat' && !tween && !reduceMotion) { pov.yaw -= Math.min(0.05, (now - lastT) / 1000) * 0.14; applyPov(); }
+  lastT = now;
   grade.uniforms.time.value = (now % 1000) / 1000; grade.uniforms.amt.value = state.mode === 'seat' ? 1 : 0.35;
   st.ledTex.offset.x = (now * 0.000012) % 1;
   composer.render();

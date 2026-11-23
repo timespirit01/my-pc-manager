@@ -232,6 +232,7 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false } = {}) 
   });
 
   // 그라운드 (경계 모양 그대로)
+  let cover;
   {
     const p = [], uv = [], put = (x, z) => { p.push(x, 0, z); uv.push((x + FIELD / 2) / FIELD, 1 - (z - CZ + FIELD / 2) / FIELD); };
     for (let i = 0; i < N; i++) { const a = P((i / N) * 360, 0.4, 0), c = P(((i + 1) / N) * 360, 0.4, 0); put(0, CZ); put(c.x, c.z); put(a.x, a.z); }
@@ -239,6 +240,7 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false } = {}) 
     g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals();
     const ground = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: fieldTexture(fieldTexSize, polePts), roughness: 1 }));
     ground.receiveShadow = true; root.add(ground);
+    cover = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0x2a2c31, roughness: 0.9 })); cover.position.y = 0.05; cover.receiveShadow = true;   // 콘서트용 바닥 보호 매트
     const b0 = buf(); sweep(b0, 0, 360, [[0.3, -0.05], [(q) => Dout(q) + 1, -0.05]], { step: 3 });
     root.add(meshFrom(b0, dark));
   }
@@ -371,8 +373,8 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false } = {}) 
   const poleMat = new THREE.MeshStandardMaterial({ color: 0xf2c230, roughness: 0.5 });
   for (const p of polePts) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 22, 8), poleMat); m.position.set(p.x, 11, p.z); m.castShadow = true; root.add(m); }
   const bs = SPEC.base / Math.SQRT2, white = new THREE.MeshStandardMaterial({ color: 0xf4f4f0, roughness: 0.8 });
-  for (const [x, z] of [[bs, -bs], [0, -2 * bs], [-bs, -bs]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.08, 0.4), white); m.position.set(x, 0.04, z); m.rotation.y = Math.PI / 4; m.receiveShadow = true; root.add(m); }
   const players = new THREE.Group(); root.add(players);
+  for (const [x, z] of [[bs, -bs], [0, -2 * bs], [-bs, -bs]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.08, 0.4), white); m.position.set(x, 0.04, z); m.rotation.y = Math.PI / 4; m.receiveShadow = true; players.add(m); }
   const put = (x, z, look, pl) => { pl.position.set(x, 0, z); pl.lookAt(look[0], 0, look[1]); pl.rotateY(Math.PI); players.add(pl); };
   const HW = 0xf3f3f0, AW = 0x6d1530, HC = 0x7a1634, AC = 0x1b2a55, home = [0, 0];
   put(0, -SPEC.mound, home, makePlayer(HW, HW, { cap: HC }));
@@ -474,5 +476,31 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false } = {}) 
     total += s.seats.length;
   }
   shell.add(roof, wall);
-  return { root, sections, labels, roof, wall, shell, net, crowd, players, total, people, polePts, ledTex };
+
+  // ── 콘서트 모드(가상 배치): 중견 쪽 메인 무대 + 돌출 무대 + 플로어석 ──
+  const concert = new THREE.Group(); concert.visible = false; concert.add(cover); root.add(concert);
+  {
+    const stg = new THREE.MeshStandardMaterial({ color: 0x15171b, roughness: 0.7 }), tr = new THREE.MeshStandardMaterial({ color: 0x8a9097, roughness: 0.4, metalness: 0.8 });
+    const mk = (w, h, d, x, y, z, mat = stg) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; concert.add(m); return m; };
+    mk(58, 2.4, 20, 0, 1.2, -99); mk(4.5, 2.0, 34, 0, 1.0, -72);
+    const bst = new THREE.Mesh(new THREE.CylinderGeometry(6.5, 6.5, 2.0, 32), stg); bst.position.set(0, 1.0, -50); bst.castShadow = bst.receiveShadow = true; concert.add(bst);
+    for (const sx of [-1, 1]) for (const z of [-90, -108]) mk(1.2, 26, 1.2, sx * 28, 13, z, tr);
+    for (const z of [-90, -108]) mk(57, 1.2, 1.2, 0, 26, z, tr);
+    for (const sx of [-1, 1]) mk(1.2, 1.2, 18, sx * 28, 26, -99, tr);
+    const led = canvasTex(1024, 384, (g, w, h) => {
+      const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#ff3d8b'); gr.addColorStop(0.5, '#7a3cff'); gr.addColorStop(1, '#1fb6ff'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(255,255,255,${0.04 + (i % 5) * 0.02})`; g.beginPath(); g.arc((i * 137) % w, (i * 71) % h, 20 + (i % 7) * 14, 0, 7); g.fill(); }
+      g.fillStyle = '#fff'; g.font = 'bold 150px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('LIVE IN SEOUL', w / 2, h / 2);
+    });
+    const scr = (w, h, x, y, z, ry) => { const mt = new THREE.MeshBasicMaterial({ map: led, fog: false }); mt.color.setScalar(1.7); const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mt); m.position.set(x, y, z); m.rotation.y = ry; concert.add(m); const f = mk(w + 1, h + 1, 0.5, x, y, z); f.rotation.y = ry; f.translateZ(-0.35); };
+    scr(46, 17, 0, 12.5, -107.5, 0); scr(15, 9, -41, 12, -103, 0.38); scr(15, 9, 41, 12, -103, -0.38);
+    // 플로어석 (선택 불가, 분위기용)
+    const pos = []; for (const [x0, x1] of [[-36, -5], [5, 36]]) for (const [z0, z1] of [[-84, -60], [-55, -30]]) for (let x = x0; x <= x1; x += 0.62) for (let z = z0; z <= z1; z += 0.95) pos.push(x, z);
+    const fl = new THREE.InstancedMesh(new THREE.BoxGeometry(0.46, 0.85, 0.46).translate(0, 0.45, 0), new THREE.MeshStandardMaterial({ color: 0x3b3f47, roughness: 0.8 }), pos.length / 2);
+    const mm = new THREE.Matrix4(); for (let i = 0; i < pos.length; i += 2) { mm.makeTranslation(pos[i], 0.05, pos[i + 1]); fl.setMatrixAt(i / 2, mm); } fl.receiveShadow = true; concert.add(fl);
+    // 조명 빔
+    const cone = new THREE.CylinderGeometry(0.25, 4.2, 34, 14, 1, true).translate(0, -17, 0);
+    [0xff5ca8, 0x6aa8ff, 0xffe27a, 0x9d7bff].forEach((c, k) => { for (const sx of [-1, 1]) { const m = new THREE.Mesh(cone, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.13, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })); m.position.set(sx * (6 + k * 6), 25.5, -90); m.rotation.set(0.35 + k * 0.12, 0, sx * (0.12 + k * 0.1)); m.renderOrder = 6; concert.add(m); } });
+  }
+  return { root, sections, labels, roof, wall, shell, net, crowd, players, concert, lampMat, total, people, polePts, ledTex };
 }
