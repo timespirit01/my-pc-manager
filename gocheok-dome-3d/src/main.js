@@ -274,7 +274,7 @@ function drawMini() {
 }
 
 $('#selSection').onchange = (e) => { const s = byId[e.target.value]; s ? goSection(s) : goOverview(); };
-$('#selRow').onchange = () => { syncPickerRow(); if (state.mode === 'seat') $('#btnView').onclick(); };
+$('#selRow').onchange = () => { syncPickerRow(); if (state.mode === 'seat') viewPicked(); };
 function syncPickerRow() {
   const s = state.section, r = +$('#selRow').value, nums = s.seats.filter((x) => x.row === r).map((x) => x.num);
   fillSelect($('#selNum'), nums.map((x) => [x, `${x}번`]), Math.ceil(nums.length / 2));
@@ -284,8 +284,10 @@ function seatFromPicker() {
   const r = +$('#selRow').value, n = +$('#selNum').value;
   return s.seats.findIndex((x) => x.row === r && x.num === n);
 }
-$('#btnView').onclick = () => { const i = seatFromPicker(); if (i >= 0) goSeat(state.section, i); };
-$('#selNum').onchange = () => { if (state.mode === 'seat') $('#btnView').onclick(); };
+function closePanel() { document.body.classList.remove('panel-open'); $('#panelToggle').setAttribute('aria-expanded', false); }
+function viewPicked() { const i = seatFromPicker(); if (i >= 0) goSeat(state.section, i); return i >= 0; }
+$('#btnView').onclick = () => { if (viewPicked()) closePanel(); };   // 시야로 이동하면 패널을 닫아 화면을 가리지 않게
+$('#selNum').onchange = () => { if (state.mode === 'seat') viewPicked(); };
 $('#btnBack').onclick = () => (state.mode === 'seat' ? goSection(state.section) : goOverview());
 $('#btnAll').onclick = goOverview;
 $('#btnCrowd').onclick = () => { state.crowd = !state.crowd; $('#btnCrowd').textContent = state.crowd ? '관중 숨기기' : '관중 보이기'; $('#btnCrowd').setAttribute('aria-pressed', state.crowd); syncUI(); };
@@ -296,6 +298,7 @@ $('#btnShare').onclick = async () => {
   catch { $('#btnShare').textContent = '주소창 링크 복사'; }
   setTimeout(() => ($('#btnShare').textContent = '시야 링크 공유'), 1600);
 };
+$('#cardToggle').onclick = () => { const on = $('#card').classList.toggle('open'); $('#cardToggle').textContent = on ? '접기' : '자세히'; $('#cardToggle').setAttribute('aria-expanded', on); };
 $('#panelToggle').onclick = () => { const on = document.body.classList.toggle('panel-open'); $('#panelToggle').setAttribute('aria-expanded', on); if (on) $('#selSection').focus(); };
 addEventListener('keydown', (e) => {
   if (/^(SELECT|INPUT|TEXTAREA)$/.test(e.target.tagName)) return;

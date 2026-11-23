@@ -76,6 +76,23 @@ body[data-mode=seat] #panelToggle { display:inline-block; }
   body[data-mode=seat] #cStats div { padding:5px 2px; }
   body[data-mode=seat] #cTitle { font-size:17px; margin:6px 0 0; }
 }
+#cardToggle { display:none; }
+@media (max-width:760px) {
+  header h1 { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1; }
+  header .sp { display:none; }
+  body[data-mode=seat] header h1 { visibility:hidden; }
+  body[data-mode=seat] #hint { display:none; }
+  /* 시야 화면: 카드를 접어서 구역·가격과 방향 버튼만 표시 */
+  body[data-mode=seat] #cardToggle { display:inline-flex; align-items:center; position:absolute; right:10px; top:8px; min-height:36px; padding:4px 12px; font-size:12px; }
+  body[data-mode=seat] #card:not(.open) { padding:8px 10px; }
+  body[data-mode=seat] #card:not(.open) #mini, body[data-mode=seat] #card:not(.open) #cSub, body[data-mode=seat] #card:not(.open) #cStats,
+  body[data-mode=seat] #card:not(.open) #cGrade, body[data-mode=seat] #card:not(.open) .row:last-child { display:none; }
+  body[data-mode=seat] #card:not(.open) #cTitle { display:inline; font-size:15px; margin:0 8px 0 0; }
+  body[data-mode=seat] #card:not(.open) #cPrice { display:inline; font-size:14px; margin:0; }
+  body[data-mode=seat] #card:not(.open) .row { margin:8px 0 0 !important; }
+  body[data-mode=seat] #card:not(.open) .row .btn { min-height:38px; padding:4px; }
+  body[data-mode=seat] #card.open #mini { top:52px; width:64px; height:64px; }
+}
 @media (prefers-reduced-motion:reduce) { #panel { transition:none !important; } }
 </style>
 </head>
@@ -106,6 +123,7 @@ body[data-mode=seat] #panelToggle { display:inline-block; }
 
 <section id="card" aria-label="선택한 좌석 정보" aria-live="polite" hidden>
   <canvas id="mini" width="184" height="184" aria-hidden="true"></canvas>
+  <button class="btn" id="cardToggle" aria-expanded="false" aria-controls="card">자세히</button>
   <span id="cGrade"></span>
   <div id="cTitle"></div>
   <div id="cSub"></div>
