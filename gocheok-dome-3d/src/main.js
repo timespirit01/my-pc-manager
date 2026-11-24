@@ -10,7 +10,7 @@ import { SPEC, GRADES } from './data.js';
 import { buildStadium, R0, P } from './stadium.js';
 import { createPlan } from './plan.js';
 import { loadAssets } from './assets.js';
-import { loadBake, applyBake } from './bake.js';
+import { loadBake, applyBake, applyGloss } from './bake.js';
 
 const $ = (q) => document.querySelector(q);
 const canvas = $('#scene');
@@ -514,6 +514,8 @@ shell(false); syncUI();
 $('#seatTotal').textContent = st.total.toLocaleString();
 if (!fromHash()) { camera.position.set(0, 330, 260); flyTo(HOME_VIEW, orbit.target, 50, 1800, () => { orbit.enabled = true; }); }
 renderer.shadowMap.needsUpdate = true;
+st.root.traverse((o) => { if (o.userData.centerPost) o.visible = false; });   // 포수 뒤 정중앙 그물 기둥: 실제 사진에 없고 시야를 가림
+if (baked) { const sv = [st.shell.visible, st.labels.visible, st.crowd.visible]; st.shell.visible = true; st.labels.visible = st.crowd.visible = false; applyGloss(renderer, scene, baked, undefined, isMobile ? 128 : 256); [st.shell.visible, st.labels.visible, st.crowd.visible] = sv; }
 $('#loading').remove();
 window.__app = { baked, assets, setEvent, plan, state, sections, goSection, goSeat, goOverview, goNeighbor, neighbor, thumb, st, camera };
 

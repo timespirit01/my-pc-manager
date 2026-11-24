@@ -12,7 +12,8 @@ export const SPEC = {
   officialSeats: 16744,  // 구단 공식 좌석수
   base: 27.432,          // 루간 거리
   mound: 18.44,          // 투수판 거리
-  backstop: 19,          // 추정
+  backstop: 9.5,         // 가상투어 사진 역산 (홈 뒤 14.2m·높이 5m 카메라 기준): 백스톱 벽까지 약 9.5m
+  sideWall: 14,          // 같은 방법: 홈 옆 벽까지 약 14m
   centerZ: -50,          // 관람석 배치 기준 중심(홈에서 중견 방향 50m) — 모델링용
 };
 

@@ -13,8 +13,10 @@ function rhoHome(thDeg) {
   const t = Math.abs(wrap180(thDeg));
   if (t <= 45) return SPEC.foulLine + (SPEC.center - SPEC.foulLine) * Math.pow(Math.cos(2 * t * D2R), 0.85);
   const a = t - 45;                                   // 파울라인에서 벗어난 각
-  const w = 6 + 10 * smooth(0, 55, a);                // 파울 지역 폭(추정): 폴 6m → 홈 부근 16m
-  return Math.min(SPEC.foulLine + 1, w / Math.sin(a * D2R), SPEC.backstop);
+  const w = 5.5 + 6.5 * smooth(0, 45, a);             // 파울선~벽 거리: 폴 5.5m → 베이스 부근 10m → 홈 옆 12m (가상투어 사진 역산)
+  const side = SPEC.sideWall / Math.max(0.05, Math.abs(Math.sin(t * D2R)));   // 홈 옆 벽 (x = ±14m)
+  const back = SPEC.backstop / Math.max(0.05, -Math.cos(t * D2R));            // 백스톱 벽 (홈 뒤 9.5m)
+  return Math.min(SPEC.foulLine + 1, w / Math.sin(a * D2R), t > 95 ? side : 1e9, t > 90 ? back : 1e9);   // 홈 옆 직선 벽은 홈 플레이트보다 뒤쪽에서만
 }
 
 const N = 720;
@@ -115,9 +117,8 @@ const FIELD = 300;
 function fieldTexture(size, polePts) {
   return canvasTex(size, size, (g) => {
     const s = size / FIELD, X = (x) => (x + FIELD / 2) * s, Z = (z) => (z - CZ + FIELD / 2) * s;
-    const RED = '#963a36';                                   // 파울 지역·워닝트랙: 붉은 인조잔디 (가상투어 확인)
-    g.fillStyle = RED; g.fillRect(0, 0, size, size);
-    g.save(); g.beginPath(); g.moveTo(X(0), Z(2.2)); g.lineTo(X(112), Z(-109.8)); g.lineTo(X(112), Z(-200)); g.lineTo(X(-112), Z(-200)); g.lineTo(X(-112), Z(-109.8)); g.closePath(); g.clip();
+    const RED = '#963a36';                                   // 벽 앞 붉은 인조잔디 띠 (가상투어 확인: 파울 지역도 대부분 잔디)
+    g.save();
     g.fillStyle = '#3f8436'; g.fillRect(0, 0, size, size);
     // 잔디 결(교차 줄무늬)
     g.translate(X(0), Z(0)); g.rotate(Math.PI / 4);
@@ -128,8 +129,14 @@ function fieldTexture(size, polePts) {
     g.restore();
     const path = () => { g.beginPath(); for (let i = 0; i <= N; i++) { const p = P((i / N) * 360, 0, 0); i ? g.lineTo(X(p.x), Z(p.z)) : g.moveTo(X(p.x), Z(p.z)); } g.closePath(); };
     const dirt = '#b9783f';
-    g.fillStyle = '#3a7d33'; g.beginPath(); g.arc(X(0), Z(0), 8.5 * s, 0, 7); g.fill();          // 홈 주변 잔디 원
-    path(); g.strokeStyle = RED; g.lineWidth = 9 * s; g.stroke();   // 워닝트랙
+    // 파울 지역 벽 앞 붉은 띠: 폴 부근 0 → 베이스 옆 4m → 홈 옆 5.5m → 홈 뒤 3.2m
+    const rw = (phi) => { const u = Math.abs(wrap180(phi)); return u < 70 ? 0 : u < 82 ? 4 * smooth(70, 82, u) : u < 150 ? 4 + 1.5 * smooth(82, 150, u) : 5.5 - 2.3 * smooth(150, 180, u); };
+    g.beginPath();
+    for (let ph = 68; ph <= 292; ph += 0.5) { const p = P(ph, 0, 0); ph === 68 ? g.moveTo(X(p.x), Z(p.z)) : g.lineTo(X(p.x), Z(p.z)); }
+    for (let ph = 292; ph >= 68; ph -= 0.5) { const p = P(ph, -rw(ph), 0); g.lineTo(X(p.x), Z(p.z)); }
+    g.closePath(); g.fillStyle = RED; g.fill();
+    path(); g.strokeStyle = 'rgba(20,50,20,0.35)'; g.lineWidth = 5 * s; g.stroke();   // 외야 벽 앞 짙은 잔디
+    g.fillStyle = '#3a7d33'; g.beginPath(); g.arc(X(0), Z(0), 6.5 * s, 0, 7); g.fill();          // 홈 주변 짙은 잔디 원
     g.save(); g.beginPath(); g.moveTo(X(0), Z(3)); g.lineTo(X(60), Z(-57)); g.lineTo(X(-60), Z(-57)); g.closePath(); g.clip();
     g.fillStyle = dirt; g.beginPath(); g.arc(X(0), Z(-SPEC.mound), 29 * s, 0, 7); g.fill(); g.restore();
     const b = SPEC.base / Math.SQRT2;
@@ -337,7 +344,7 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false, assets 
   const net = meshFrom(b, new THREE.MeshBasicMaterial({ map: netTex, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false }), { receive: false });
   net.renderOrder = 5; root.add(net);
   const postG = new THREE.CylinderGeometry(0.07, 0.07, 10, 8);
-  for (let a = 112; a <= 248; a += 17) { const m = new THREE.Mesh(postG, steel); P(a, 0.12, 6, m.position); root.add(m); }
+  for (let a = 112; a <= 248; a += 17) { const m = new THREE.Mesh(postG, steel); P(a, 0.12, 6, m.position); m.userData.centerPost = Math.abs(a - 180) < 10; root.add(m); }   // 가운데 기둥은 실제에 없음 (main.js 에서 숨김)
   b = buf(); sweep(b, 112, 248, [[0.1, 10.95], [0.1, 11.05], [0.16, 11.05]]); root.add(meshFrom(b, steel));
 
   // 외벽 + 지붕
@@ -422,8 +429,8 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false, assets 
     const f = new THREE.Mesh(new THREE.BoxGeometry(spec.w + 1, spec.h + 1, 0.6), dark); f.position.copy(m.position); f.quaternion.copy(m.quaternion); f.translateZ(-0.4); root.add(f);
   };
   mkBoard(0, o4.dEnd + 0.6, 28.4, SPEC.mainBoard, 'main');
-  mkBoard(47, o2.dEnd + 2.6, 20, SPEC.twinBoard, 'HOME');       // 쌍둥이 전광판: 중앙 상단 스탠드 좌우 (가상투어 확인)
-  mkBoard(-47, o2.dEnd + 2.6, 20, SPEC.twinBoard, 'AWAY');
+  mkBoard(58, o2.dEnd + 2.6, 20, SPEC.twinBoard, 'HOME');       // 쌍둥이 전광판: 폴 안쪽 외야 상단 좌우 (가상투어 사진과 겹쳐 맞춤)
+  mkBoard(-58, o2.dEnd + 2.6, 20, SPEC.twinBoard, 'AWAY');
 
   // ── 좌석 (접이식: 등받이 + 접힌 좌판 + 브래킷) ──
   const seatGeo = assets?.seatLo || merge([
@@ -538,7 +545,7 @@ export function collectBake(st) {
   const skip = new Set([st.seatGroup, st.labels, st.crowd, st.players, st.concert]);
   const out = { ground: st.ground, stands: [st.standC, st.standD], vertex: [], emit: [] };
   const walk = (o) => {
-    if (skip.has(o) || !o.visible && o !== st.shell) return;
+    if (skip.has(o)) return;                          // 표시 여부와 관계없이 같은 순서 (숨긴 기둥 때문에 순서가 바뀌지 않게)
     if (o.isMesh && !o.isInstancedMesh && o !== st.ground && o !== st.standC && o !== st.standD) {
       const m = o.material;
       if (m.isMeshStandardMaterial) out.vertex.push(o);
