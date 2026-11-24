@@ -291,6 +291,9 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false, assets 
   // 스탠드(계단식)
   const cB = buf(), dB = buf(), rail = buf(), led = buf();
   const tierInfo = {};
+  // 맨 뒤 벽 높이: 바로 뒤에 2층(내야 IN2·외야 OF2)이 붙어 있으면 그 바닥(+앞 턱)까지만 — 2.6m 벽이 2층 앞을 가리지 않게
+  const behind = (t) => TIERS.find((u) => u.zone === t.zone && u.floor === t.floor + 1 && u.ground);
+  const backTop = (t, yEnd) => { const u = behind(t); return u ? Math.min(yEnd + 2.6, u.y0 + (u.parapet || 0)) : yEnd + 2.6; };
   // 층별 옆쪽 당김: 포수 뒤(φ=180)는 0, 1·3루 옆(|φ-180|>60)은 t.side 만큼
   const sideOff = (t) => (t.side ? (p) => t.side * smooth(25, 60, Math.abs(wrap180(p - 180))) : null);
   const shift = (prof, off) => (off ? prof.map(([d, y]) => [(p) => val(d, p) + off(p), y]) : prof);
@@ -308,7 +311,7 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false, assets 
       prof.push([d1, y]); if (k < t.rows - 1) prof.push([d1, y + t.rise]);
     }
     const dEnd = r0 + t.rows * t.depth, yEnd = t.y0 + (t.rows - 1) * t.rise;
-    prof.push([dEnd + 1.2, yEnd], [dEnd + 1.2, yEnd + 2.6]);
+    prof.push([dEnd + 1.2, yEnd], [dEnd + 1.2, backTop(t, yEnd)]);
     sw(cB, t.a, t.b, prof);
     if (!t.ground) {
       sw(dB, t.a, t.b, [[t.d0, t.y0 - 1.3], [dEnd + 1.2, yEnd - 1.2]]);
@@ -328,10 +331,25 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false, assets 
   sweep(cB, -30, 30, [[o4.dEnd + 1.2, o4.yEnd + 2.6], [(p) => Dout(p), o4.yEnd + 2.6]]);
   sweep(dB, -58, -30, [[o2.dEnd + 1.2, 11.3], [o2.dEnd + 3, 11.3], [o2.dEnd + 3, 33]]); sweep(dB, 30, 58, [[o2.dEnd + 1.2, 11.3], [o2.dEnd + 3, 11.3], [o2.dEnd + 3, 33]]);
   for (const [a, e] of [[58, 78], [282, 302]]) sweep(dB, a, e, [[0.3, fenceH], [0.3, 9], [6, 9], [6, 20], [(p) => Dout(p), 20]]);   // 외야석 끝~내야석 사이 (좌석 없음)
+  // 미리 만든 형상(stands.glb)도 같은 기준으로 1층 뒤 벽 윗변을 낮춘다
+  const capBackWalls = (g) => {
+    const pos = g.attributes.position, v = new THREE.Vector3();
+    for (const t of TIERS) {
+      const info = tierInfo[t.id], u = behind(t); if (!u) continue;
+      const top = info.yEnd + 2.6, cap = backTop(t, info.yEnd), dw = info.dEnd + 1.2, span = ((t.b - t.a) % 360 + 360) % 360;
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i); if (Math.abs(v.y - top) > 0.03) continue;
+        const phi = THREE.MathUtils.radToDeg(Math.atan2(v.x, SPEC.centerZ - v.z)), rel = ((phi - t.a) % 360 + 360) % 360;
+        if (rel > span + 0.5 && rel < 359.5) continue;
+        if (Math.abs(Math.hypot(v.x, v.z - SPEC.centerZ) - R0(phi) - dw) < 0.4) pos.setY(i, cap);
+      }
+    }
+    pos.needsUpdate = true; g.computeBoundingSphere(); return g;
+  };
   const standC = meshFrom(cB, concrete, { cast: true }), standD = meshFrom(dB, dark, { cast: true });
   standC.name = 'standsConcrete'; standD.name = 'standsDark';
   if (assets?.stands) {                                // Blender 에서 그림자(AO)를 구운 같은 형상으로 교체
-    standC.geometry = assets.stands.concrete; standD.geometry = assets.stands.dark;
+    standC.geometry = capBackWalls(assets.stands.concrete); standD.geometry = assets.stands.dark;
     standC.material = concrete.clone(); standD.material = dark.clone();
     if (assets.ao) for (const m of [standC.material, standD.material]) { m.aoMap = assets.ao; m.aoMapIntensity = 1.0; }
   }

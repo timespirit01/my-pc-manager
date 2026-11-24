@@ -350,8 +350,31 @@ def tune_field():
             print('field tuned', o.name, slot.material.name)
 
 
+def cap_back_walls(geo):
+    """1층 맨 뒤 벽(2.6m)이 바로 뒤 2층(내야 IN2·외야 OF2) 좌석 앞을 가리지 않게 2층 바닥(+앞 턱) 높이로 낮춘다."""
+    T = {t['id']: t for t in geo.A['tiers']}; n = 0
+    for lo, hi in (('IN1', 'IN2'), ('OF1', 'OF2')):
+        a, b = T[lo], T[hi]; ytop, dw, cap = a['yEnd'] + 2.6, a['dEnd'] + 1.2, b['y0'] + (b.get('parapet') or 0)
+        for o in bpy.data.objects:
+            if o.type != 'MESH' or not o.name.startswith('stands'):
+                continue
+            for v in o.data.vertices:
+                x, y, z = v.co.x, v.co.z, -v.co.y                       # three 좌표
+                if abs(y - ytop) > 0.03:
+                    continue
+                phi = math.degrees(math.atan2(x, geo.CZ - z)); ph = (phi - a['a'] + 360) % 360
+                if ph > (a['b'] - a['a']) % 360 + 0.5 and ph < 359.5:
+                    continue
+                d = math.hypot(x, z - geo.CZ) - geo.tab(geo.r0, phi % 360)
+                if abs(d - dw) < 0.4:
+                    v.co.z = cap; n += 1
+            o.data.update()
+    print('back walls capped', n)
+
+
 def detail(sc, J):
     geo = Geo(J['anchors']); geo.names = J.get('names', [])
+    cap_back_walls(geo)
     add_seats(J, geo); add_railings(geo); add_aisles(geo); add_net(geo); add_lattice(geo, J); add_fixtures(J)
     add_space_frame(geo); tune_roof(J); tune_field()
     # 지붕 트러스·막 아치: 흰 도장 (가상투어)
