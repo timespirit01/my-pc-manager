@@ -515,7 +515,7 @@ $('#seatTotal').textContent = st.total.toLocaleString();
 if (!fromHash()) { camera.position.set(0, 330, 260); flyTo(HOME_VIEW, orbit.target, 50, 1800, () => { orbit.enabled = true; }); }
 renderer.shadowMap.needsUpdate = true;
 st.root.traverse((o) => { if (o.userData.centerPost) o.visible = false; });   // 포수 뒤 정중앙 그물 기둥: 실제 사진에 없고 시야를 가림
-if (baked) { const sv = [st.shell.visible, st.labels.visible, st.crowd.visible]; st.shell.visible = true; st.labels.visible = st.crowd.visible = false; applyGloss(renderer, scene, baked, undefined, isMobile ? 128 : 256); [st.shell.visible, st.labels.visible, st.crowd.visible] = sv; }
+if (baked) { const sv = [st.shell.visible, st.labels.visible, st.crowd.visible, st.lampI.visible]; st.shell.visible = true; st.labels.visible = st.crowd.visible = false; st.lampI.visible = false;   /* 조명등이 바닥에 줄로 비치지 않게 반사 장면에서 뺌 */ applyGloss(renderer, scene, baked, undefined, isMobile ? 128 : 256); [st.shell.visible, st.labels.visible, st.crowd.visible, st.lampI.visible] = sv; }
 $('#loading').remove();
 window.__app = { baked, assets, setEvent, plan, state, sections, goSection, goSeat, goOverview, goNeighbor, neighbor, thumb, st, camera };
 

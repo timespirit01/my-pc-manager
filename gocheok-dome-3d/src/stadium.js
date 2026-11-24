@@ -407,7 +407,8 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false, assets 
     const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, fog: false }); mat.color.setScalar(bright);
     return new THREE.Mesh(rg, mat);
   };
-  const deckTex = canvasTex(256, 256, (g, w, h) => { g.fillStyle = '#4a4744'; g.fillRect(0, 0, w, h); g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 3; g.strokeRect(0, 0, w, h); noise(g, w, h, 0.12, 9); }, [1, 1]);
+  const deckTex = canvasTex(256, 256, (g, w, h) => { g.fillStyle = '#9a9ea3';   // 트러스 뒤 지붕 밑면: 밝은 회색 (가상투어)
+     g.fillRect(0, 0, w, h); g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 3; g.strokeRect(0, 0, w, h); noise(g, w, h, 0.12, 9); }, [1, 1]);
   const roof = new THREE.Group(); roof.add(roofPart(0, TM, 10, memTex, 1.12), roofPart(TM, 1, 8, assets?.truss ? deckTex : trussTex, assets?.truss ? 0.75 : 0.9));
   root.add(roof);
 

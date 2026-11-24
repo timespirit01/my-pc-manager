@@ -23,7 +23,8 @@ export function applyGloss(renderer, scene, baked, at = new THREE.Vector3(0, 14,
   return rt;
 }
 
-export const R_ENC = 4;                               // 저장 범위 (bake_lighting.py 와 같아야 함)
+export const R_ENC = 4;
+const TRUSS = new Set(['roof_truss', 'roof_cable']);                               // 저장 범위 (bake_lighting.py 와 같아야 함)
 const SEAT_K = 0.62;                                  // 위·앞을 향한 측정판보다 실제 좌석 면이 받는 빛이 적다
 
 export async function loadBake({ lite = false, maxTex = 4096 } = {}) {
@@ -61,7 +62,7 @@ export function applyBake(st, sections, bake) {
     m.geometry = geo;
     const wasMetal = m.material.metalness > 0.3, hasMap = !!m.material.map;
     m.material = basic(m.material, { vertexColors: true });
-    m.material.color.multiplyScalar(R_ENC);
+    m.material.color.multiplyScalar(R_ENC * (TRUSS.has(m.name) ? 1.9 : 1));   // 트러스: 흰 도장 철골 (가상투어), 위쪽은 직접광이 적어 보정
     glossy.push([m.material, wasMetal ? GLOSS.steel : hasMap ? GLOSS.pad : GLOSS.wall]);
     m.castShadow = m.receiveShadow = false; n++;
   });
