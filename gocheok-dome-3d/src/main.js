@@ -10,6 +10,7 @@ import { SPEC, GRADES } from './data.js';
 import { buildStadium, R0, P } from './stadium.js';
 import { createPlan } from './plan.js';
 import { loadAssets } from './assets.js';
+import { loadBake, applyBake } from './bake.js';
 
 const $ = (q) => document.querySelector(q);
 const canvas = $('#scene');
@@ -38,6 +39,14 @@ orbit.minDistance = 40; orbit.maxDistance = 420; orbit.enablePan = false;
 const maxTex = renderer.capabilities.maxTextureSize;
 const assets = new URLSearchParams(location.search).has('export') ? null : await loadAssets({ lite: isMobile, maxTex }).catch(() => null);
 const st = buildStadium(scene, { fieldTexSize: isMobile || maxTex < 4096 ? 2048 : 4096, lite: isMobile, assets });
+// Cycles 로 구운 조명: 있으면 실시간 그림자를 끄고 구운 빛으로 그린다 (사람·선수만 실시간 조명)
+const qs = new URLSearchParams(location.search);
+const bake = assets && !qs.has('nobake') ? await loadBake({ lite: isMobile, maxTex }).catch((e) => { console.warn('[bake]', e?.message || e); return null; }) : null;
+const baked = bake ? applyBake(st, st.sections, bake) : null;
+if (baked) {
+  renderer.shadowMap.enabled = false; renderer.toneMapping = THREE.AgXToneMapping; renderer.toneMappingExposure = 1.0;
+  hemi.intensity = 1.1; sun.intensity = 1.4; sun.castShadow = false;
+}
 const { sections } = st;
 const byId = Object.fromEntries(sections.map((s) => [s.id, s]));
 const HOME_VIEW = new THREE.Vector3(0, 190, 122);
@@ -51,27 +60,34 @@ composer.addPass(new RenderPass(scene, camera));
 composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.38, 0.7, 1.35));
 composer.addPass(new OutputPass());
 const grade = new ShaderPass({
-  uniforms: { tDiffuse: { value: null }, time: { value: 0 }, amt: { value: 0 } },
+  uniforms: { tDiffuse: { value: null }, time: { value: 0 }, amt: { value: 0 }, look: { value: 0 } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-  fragmentShader: `uniform sampler2D tDiffuse; uniform float time, amt; varying vec2 vUv;
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float time, amt, look; varying vec2 vUv;
     float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)) + time) * 43758.5453); }
     void main(){ vec4 c = texture2D(tDiffuse, vUv); vec2 q = vUv - 0.5;
+      // 구운 조명일 때: Blender AgX 'Medium High Contrast' 에 가깝게 대비·채도를 올림
+      vec3 l = (c.rgb - 0.5) * (1.0 + 0.22 * look) + 0.5; float y = dot(l, vec3(0.2126, 0.7152, 0.0722));
+      c.rgb = mix(c.rgb, clamp(mix(vec3(y), l, 1.0 + 0.12 * look), 0.0, 1.0), look);
       float v = smoothstep(0.95, 0.25, length(q * vec2(1.0, 0.85)));
       c.rgb *= mix(1.0, 0.72 + 0.28 * v, amt);
       c.rgb = mix(c.rgb, c.rgb * vec3(1.03, 1.0, 0.96), amt);
       c.rgb += (h(gl_FragCoord.xy) - 0.5) * 0.035 * amt; gl_FragColor = c; }`,
 });
 composer.addPass(grade);
+let lightMean = 1;
+if (baked) { grade.uniforms.look.value = 1; lightMean = bake.seatLight.reduce((a, b) => a + b, 0) / bake.seatLight.length; }
 
 // ── 상태 ─────────────────────────────────────────────
 const state = { event: 'baseball', auto: false, crowd: false, mode: 'overview', section: null, seat: null, seatIdx: -1, hover: null, hoverSeat: -1, filter: null, weekend: false };
+const tmpL = new THREE.Color();
 const WHITE = new THREE.Color(0xffffff), YELLOW = new THREE.Color(0xffd400), GRAY = new THREE.Color(0x4a4d55), tmpC = new THREE.Color();
 
 function paint(s) {
   const dim = state.filter && state.filter !== s.grade;
   const hot = state.hover === s || (state.section === s && state.mode === 'section');
   tmpC.copy(dim ? GRAY : state.mode === 'seat' ? s.realColor : s.color); if (hot && !dim) tmpC.lerp(new THREE.Color(0xffffff), 0.22);
-  for (let i = 0; i < s.seats.length; i++) s.mesh.setColorAt(i, tmpC);
+  if (s.light) { const k = state.mode === 'seat' ? 1 : 1 / lightMean; for (let i = 0; i < s.seats.length; i++) s.mesh.setColorAt(i, tmpL.copy(tmpC).multiplyScalar(s.light[i] * k)); }   // 구운 좌석별 밝기 (배치도·전체 보기는 평균 1로 맞춰 등급 색이 보이게)
+  else for (let i = 0; i < s.seats.length; i++) s.mesh.setColorAt(i, tmpC);
   if (state.section === s && state.mode === 'section' && state.hoverSeat >= 0) s.mesh.setColorAt(state.hoverSeat, WHITE);
   if (state.section === s && state.seatIdx >= 0) s.mesh.setColorAt(state.seatIdx, YELLOW);
   s.mesh.instanceColor.needsUpdate = true;
@@ -434,7 +450,8 @@ $('#panelToggle').onclick = () => { const on = document.body.classList.toggle('p
 function setEvent(ev) {
   if (state.event === ev) return; state.event = ev; const c = ev === 'concert';
   st.concert.visible = c; st.players.visible = !c;
-  hemi.intensity = c ? 0.55 : 1.55; sun.intensity = c ? 0.55 : 2.1; scene.environmentIntensity = c ? 0.12 : 0.3;
+  hemi.intensity = c ? 0.55 : baked ? 1.1 : 1.55; sun.intensity = c ? 0.55 : baked ? 1.4 : 2.1; scene.environmentIntensity = c ? 0.12 : 0.3;
+  if (baked) renderer.toneMappingExposure = c ? 0.32 : 1.0;      // 구운 조명은 낮 경기 기준이라 콘서트는 노출로 어둡게
   st.lampMat.color.setRGB(...(c ? [0.5, 0.5, 0.6] : [7, 6.8, 6.2]));
   st.roof.children[0].material.color.setScalar(c ? 0.16 : 1.12); st.roof.children[1].material.color.setScalar(c ? 0.22 : 0.9);
   HAZE.color.set(c ? 0x191b25 : 0xc9d2da); HAZE.density = c ? 0.0024 : 0.0016;
@@ -498,7 +515,7 @@ $('#seatTotal').textContent = st.total.toLocaleString();
 if (!fromHash()) { camera.position.set(0, 330, 260); flyTo(HOME_VIEW, orbit.target, 50, 1800, () => { orbit.enabled = true; }); }
 renderer.shadowMap.needsUpdate = true;
 $('#loading').remove();
-window.__app = { assets, setEvent, plan, state, sections, goSection, goSeat, goOverview, goNeighbor, neighbor, thumb, st, camera };
+window.__app = { baked, assets, setEvent, plan, state, sections, goSection, goSeat, goOverview, goNeighbor, neighbor, thumb, st, camera };
 
 renderer.setAnimationLoop((now) => {
   stepTween(now);

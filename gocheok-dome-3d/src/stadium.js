@@ -245,14 +245,14 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false, assets 
   });
 
   // 그라운드 (경계 모양 그대로)
-  let cover;
+  let cover, groundMesh;
   {
     const p = [], uv = [], put = (x, z) => { p.push(x, 0, z); uv.push((x + FIELD / 2) / FIELD, 1 - (z - CZ + FIELD / 2) / FIELD); };
     for (let i = 0; i < N; i++) { const a = P((i / N) * 360, 0.4, 0), c = P(((i + 1) / N) * 360, 0.4, 0); put(0, CZ); put(c.x, c.z); put(a.x, a.z); }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals();
     const ground = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: fieldTexture(fieldTexSize, polePts), roughness: 1 }));
-    ground.receiveShadow = true; root.add(ground);
+    ground.receiveShadow = true; ground.name = 'ground'; root.add(ground); groundMesh = ground;
     cover = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0x2a2c31, roughness: 0.9 })); cover.position.y = 0.05; cover.receiveShadow = true;   // 콘서트용 바닥 보호 매트
     const b0 = buf(); sweep(b0, 0, 360, [[0.3, -0.05], [(q) => Dout(q) + 1, -0.05]], { step: 3 });
     root.add(meshFrom(b0, dark));
@@ -311,7 +311,7 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false, assets 
   if (assets?.stands) {                                // Blender 에서 그림자(AO)를 구운 같은 형상으로 교체
     standC.geometry = assets.stands.concrete; standD.geometry = assets.stands.dark;
     standC.material = concrete.clone(); standD.material = dark.clone();
-    for (const m of [standC.material, standD.material]) { m.aoMap = assets.ao; m.aoMapIntensity = 1.0; }
+    if (assets.ao) for (const m of [standC.material, standD.material]) { m.aoMap = assets.ao; m.aoMapIntensity = 1.0; }
   }
   root.add(standC, standD, meshFrom(rail, steel));
   const ledTex = canvasTex(2048, 64, (g, w, h) => {
@@ -529,5 +529,23 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false, assets 
     const cone = new THREE.CylinderGeometry(0.25, 4.2, 34, 14, 1, true).translate(0, -17, 0);
     [0xff5ca8, 0x6aa8ff, 0xffe27a, 0x9d7bff].forEach((c, k) => { for (const sx of [-1, 1]) { const m = new THREE.Mesh(cone, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.13, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })); m.position.set(sx * (6 + k * 6), 25.5, -90); m.rotation.set(0.35 + k * 0.12, 0, sx * (0.12 + k * 0.1)); m.renderOrder = 6; concert.add(m); } });
   }
-  return { root, sections, labels, roof, wall, shell, net, crowd, players, concert, lampMat, total, people, polePts, ledTex, standC, standD, seatGroup, seatHi: assets?.seatHi || null, seatLo: assets?.seatLo ? seatGeo : null };
+  return { root, sections, labels, roof, wall, shell, net, crowd, players, concert, lampMat, total, people, polePts, ledTex, standC, standD, seatGroup, ground: groundMesh, lampI, seatHi: assets?.seatHi || null, seatLo: assets?.seatLo ? seatGeo : null };
+}
+
+// ── 조명 굽기 대상 목록 (tools/export_bake.cjs 와 런타임이 같은 순서를 쓴다) ──
+// ground: 그라운드(라이트맵), stands: 스탠드 2개(라이트맵), vertex: 정점 색으로 조명을 굽는 메시, emit: 빛을 내는 면(굽지 않음)
+export function collectBake(st) {
+  const skip = new Set([st.seatGroup, st.labels, st.crowd, st.players, st.concert]);
+  const out = { ground: st.ground, stands: [st.standC, st.standD], vertex: [], emit: [] };
+  const walk = (o) => {
+    if (skip.has(o) || !o.visible && o !== st.shell) return;
+    if (o.isMesh && !o.isInstancedMesh && o !== st.ground && o !== st.standC && o !== st.standD) {
+      const m = o.material;
+      if (m.isMeshStandardMaterial) out.vertex.push(o);
+      else if (m.isMeshBasicMaterial && !m.transparent) out.emit.push(o);
+    }
+    o.children.forEach(walk);
+  };
+  walk(st.root);
+  return out;
 }

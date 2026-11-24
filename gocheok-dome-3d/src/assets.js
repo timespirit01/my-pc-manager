@@ -8,10 +8,9 @@ export async function loadAssets({ lite = false, maxTex = 4096 } = {}) {
   const loader = new GLTFLoader();
   const soft = (p) => p.catch((e) => { console.warn('[assets]', e?.message || e); return null; });
   const glb = (f) => soft(loader.loadAsync(BASE + f).then((g) => { g.scene.updateMatrixWorld(true); return g.scene; }));
-  const aoFile = lite || maxTex < 4096 ? 'stands_ao_2k.jpg' : 'stands_ao.jpg';
-  const [hi, lo, truss, players, stands, ao] = await Promise.all([
+  // 스탠드 그림자는 bake.js 의 구운 조명(라이트맵)에 포함되므로 따로 받지 않는다
+  const [hi, lo, truss, players, stands] = await Promise.all([
     glb('seat_hi.glb'), glb('seat_lo.glb'), glb('roof_truss.glb'), glb('players.glb'), glb('stands.glb'),
-    soft(new THREE.TextureLoader().loadAsync(BASE + aoFile)),
   ]);
 
   const meshes = (root) => { const out = []; root?.traverse((o) => o.isMesh && out.push(o)); return out; };
@@ -22,16 +21,10 @@ export async function loadAssets({ lite = false, maxTex = 4096 } = {}) {
     out.players = {};
     for (const k of ['stand', 'ready', 'catcher', 'batter']) { const o = players.getObjectByName('pose_' + k); if (o) out.players[k] = o; }
   }
-  if (stands && ao) {
+  if (stands) {
     const byMat = {};
     for (const m of meshes(stands)) { const g = m.geometry.clone(); g.applyMatrix4(m.matrixWorld); byMat[m.material.name] = g; }
-    if (byMat.standsConcrete && byMat.standsDark && byMat.standsConcrete.attributes.uv1) {
-      ao.flipY = false;                      // glTF UV 규약
-      ao.channel = 1;                        // 두 번째 UV(라이트맵)
-      ao.anisotropy = 4;
-      out.stands = { concrete: byMat.standsConcrete, dark: byMat.standsDark };
-      out.ao = ao;
-    }
+    if (byMat.standsConcrete && byMat.standsDark && byMat.standsConcrete.attributes.uv1) out.stands = { concrete: byMat.standsConcrete, dark: byMat.standsDark };
   }
   return out;
 }

@@ -49,7 +49,8 @@ three.js는 `vendor/`에 포함되어 있어 외부 CDN이 필요 없습니다.
 | `seat_hi.glb` / `seat_lo.glb` | 접이식 관람석 (곡면 등받이·팔걸이·다리). 보고 있는 구역 주변 38m만 고품질 |
 | `roof_truss.glb` | 지붕 바깥 띠의 입체 철골 트러스와 막 구간 아치 |
 | `players.glb` | 선수 자세 4종 (서기·수비 준비·포수·타자). 재질 이름으로 팀 색을 입힘 |
-| `stands.glb`, `stands_ao*.jpg` | 스탠드 형상과, Cycles로 구운 주변 차폐(좌석·계단 그림자). 모바일은 2K본 사용 |
+| `stands.glb` | 스탠드 형상 (조명용 두 번째 UV 포함) |
+| `bake/*` | Cycles로 구운 조명: 스탠드·그라운드 라이트맵, 펜스·벽·트러스 정점 조명, 좌석별 밝기 |
 
 다시 만드는 순서 (관람석 형상을 `src/data.js` 에서 바꿨다면 1~3 모두 다시 실행):
 
@@ -58,9 +59,20 @@ pip install bpy==5.3.0 playwright          # Blender 파이썬 모듈
 python3 -m http.server 8765 &              # gocheok-dome-3d 폴더에서
 node tools/export_scene.cjs http://localhost:8765/ /tmp/gd        # 1. 형상·좌석 위치 내보내기
 python tools/blender/build_assets.py /tmp/gd/scene.json assets     # 2. 좌석·트러스·선수
-python tools/blender/bake_stands.py /tmp/gd assets assets 4096 192 # 3. 스탠드 AO 굽기 (4코어 CPU 약 5분)
+python tools/blender/bake_stands.py /tmp/gd assets /tmp/st 1024 16 && cp /tmp/st/stands.glb assets/  # 3. 스탠드에 조명용 UV 추가
+python tools/blender/seat_ao.py assets                                 # 4. 좌석 모델에 주변 그림자
+node tools/export_bake.cjs http://localhost:8765/ /tmp/gb              # 5. 조명 굽기용 장면 내보내기
+python tools/blender/bake_lighting.py preview /tmp/gb assets /tmp/p.png 9186 32   # (선택) 좌석 시점 Cycles 렌더로 조명 확인
+python tools/blender/bake_lighting.py bake /tmp/gb assets assets/bake 2048 192    # 6. 조명 굽기 (4코어 CPU 약 1시간)
 python tools/blender/preview.py assets /tmp/pv                     # (선택) Cycles 미리보기 렌더
 ```
+
+### 조명
+
+구운 조명은 낮 경기 기준입니다. 지붕 조명등 70개(면광원), 지붕 막을 통과하는 빛, 전광판·띠 LED의 빛과 그 반사광을 계산했습니다.
+구운 조명이 있으면 실시간 그림자 계산을 끄므로 이전보다 가볍습니다. 선수·관중만 실시간 조명을 씁니다.
+조명 세기는 `bake_lighting.py` 맨 위 `LAMP_W, MEMBRANE, BOARD` 로 바꿉니다. 콘서트 모드는 노출을 낮춰 어둡게 보여 줄 뿐, 조명을 다시 굽지는 않습니다.
+주소 끝에 `?nobake=1` 을 붙이면 굽기 전 실시간 조명 화면을 볼 수 있습니다.
 
 ## 데이터 근거와 한계
 
