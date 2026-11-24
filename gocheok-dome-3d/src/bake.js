@@ -10,7 +10,16 @@ export function applyGloss(renderer, scene, baked, at = new THREE.Vector3(0, 14,
   const rt = new THREE.WebGLCubeRenderTarget(size, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
   const cam = new THREE.CubeCamera(1, 600, rt); cam.position.copy(at); scene.add(cam);
   cam.update(renderer, scene); scene.remove(cam);
-  for (const [m, r] of baked.glossy) { m.envMap = rt.texture; m.combine = THREE.AddOperation; m.reflectivity = r; m.needsUpdate = true; }
+  for (const [m, r] of baked.glossy) {
+    m.envMap = rt.texture; m.combine = THREE.AddOperation; m.reflectivity = r;
+    if (m.vertexColors) {                                // 정점 색(밝기)에 비례: 어두운 금속·그늘엔 반사가 거의 없게
+      const chunk = THREE.ShaderChunk.envmap_fragment.replace('outgoingLight += envColor.xyz * specularStrength * reflectivity;',
+        'outgoingLight += envColor.xyz * specularStrength * reflectivity * clamp(dot(vColor.rgb, vec3(0.333)) * 1.4, 0.0, 1.0);');
+      m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <envmap_fragment>', chunk); };
+      m.customProgramCacheKey = () => 'gloss-vc';
+    }
+    m.needsUpdate = true;
+  }
   return rt;
 }
 
@@ -31,7 +40,7 @@ export async function loadBake({ lite = false, maxTex = 4096 } = {}) {
 }
 
 // 재질별 광택(환경 반사 세기). 구운 조명 위에 경기장 내부를 찍은 반사를 더한다
-export const GLOSS = { seat: 0.16, stands: 0.05, field: 0.025, pad: 0.12, steel: 0.2, wall: 0.04 };
+export const GLOSS = { seat: 0.1, stands: 0.05, field: 0.025, pad: 0.12, steel: 0.2, wall: 0.04 };
 
 export function applyBake(st, sections, bake) {
   const glossy = [];                                    // [material, 세기]

@@ -15,7 +15,7 @@ import bpy, bmesh, json, math, os, sys, time
 import numpy as np
 from mathutils import Vector
 
-MODE = next(a for a in sys.argv if a in ('preview', 'bake'))
+MODE = next(a for a in sys.argv if a in ('preview', 'bake', 'seatlight'))
 args = sys.argv[sys.argv.index(MODE) + 1:]
 SRC, ASSETS, OUT = args[0], args[1], args[2]
 REST = args[3:]
@@ -203,11 +203,13 @@ def save_srgb(arr, path, quality=90):
     print('saved', path, os.path.getsize(path), 'clipped %.4f' % clip)
 
 
-def bake():
+def bake(seat_only=False):
     res = int(REST[0]) if REST else 4096
     samples = int(REST[1]) if len(REST) > 1 else 128
     os.makedirs(OUT, exist_ok=True)
     sc, J, objs, st, seat_objs = build()
+    if seat_only:
+        return bake_seats(sc, J, samples)
 
     # 1) 그라운드 라이트맵 (첫 UV)
     g = bake_img(sc, [objs['ground']], 0, 2048 if res >= 2048 else 1024, samples, 'field')
@@ -247,8 +249,12 @@ def bake():
                               export_texcoords=True, export_normals=False, export_yup=True)
     print('bake_vertex.glb', os.path.getsize(os.path.join(OUT, 'bake_vertex.glb')))
 
+    bake_seats(sc, J, samples)
+
+
+def bake_seats(sc, J, samples):
     # 4) 좌석별 밝기: 각 좌석 앞 0.35m, 가슴 높이에 위·앞 45° 를 향한 작은 판을 두고 한 텍셀씩 굽는다
-    S = np.array(J['seats']); N = 128
+    S = np.array(J['seats']); N = int(math.ceil(math.sqrt(len(S))))
     bm = bmesh.new(); uv = bm.loops.layers.uv.new('uv')
     for i, (x, y, z, phi, _) in enumerate(S):
         ph = math.radians(phi)
@@ -276,3 +282,5 @@ def bake():
 
 if MODE == 'bake':
     bake()
+if MODE == 'seatlight':                             # 좌석별 밝기만 다시
+    bake(seat_only=True)
