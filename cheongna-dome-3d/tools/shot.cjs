@@ -1,6 +1,6 @@
 // 웹앱 화면 확인용 캡처 (Playwright). 서버를 띄우지 않고, 요청을 가로채 이 폴더의 파일을 그대로 돌려준다.
 //   node tools/shot.cjs <출력 접두어> <단계,단계,...> [mobile]
-//   단계: overview | sec:<구역> | seat:<구역>/<열>/<번호> | plan | concert | photo | look:<home|mound|field|board>
+//   단계: overview | sec:<구역> | seat:<구역>/<열>/<번호> | plan | concert | roof:<open|closed> | up | photo | look:<home|mound|field|board>
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path');
 const ROOT = path.resolve(__dirname, '..');
@@ -31,9 +31,11 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '
       await p.waitForTimeout(3200);
     } else if (s === 'plan') { await p.evaluate(() => window.__app.plan.open()); await p.waitForTimeout(800); }
     else if (s === 'concert') { await p.evaluate(() => window.__app.setEvent('concert')); await p.waitForTimeout(1500); }
+    else if (s.startsWith('roof:')) { await p.evaluate((v) => window.__app.setRoof(v), s.slice(5)); await p.waitForTimeout(3400); }
+    else if (s === 'up') { await p.evaluate(() => { const c = window.__app.camera; c.rotation.x += 0.75; c.fov = 85; c.updateProjectionMatrix(); }); await p.waitForTimeout(600); }   // 위를 올려다봄
     else if (s === 'photo') { await p.evaluate(() => document.querySelector('#btnPhoto').click()); await p.waitForTimeout(2500); }   // 사진급 360° ↔ 3D 전환
     else if (s.startsWith('look:')) { await p.click(`[data-look="${s.slice(5)}"]`).catch(() => {}); await p.waitForTimeout(1200); }
-    await p.screenshot({ path: `${out}_${s.replace(/[:\/]/g, '-')}.png` });
+    await p.screenshot({ path: `${out}_${s.replace(/[:\/]/g, "-")}.png`, timeout: 180000 });
   }
   const info = await p.evaluate(() => (window.__app ? { sections: window.__app.sections.length, total: window.__app.st.total, baked: window.__app.baked, hash: location.hash } : null));
   console.log(JSON.stringify(info)); console.log(errs.slice(0, 12).join('\n'));

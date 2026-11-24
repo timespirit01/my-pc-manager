@@ -46,6 +46,11 @@ export async function buildStadium(scene, { lite = false } = {}) {
       m.matrixAutoUpdate = false; m.updateMatrix();
     });
   }
+  // 개폐식 지붕: 가운데 두 장의 패널 (열 때 동·서로 밀고 살짝 들어 올림)
+  const roofPanels = ['roof_panel_W', 'roof_panel_E'].map((n) => shell.getObjectByName(n)).filter(Boolean);
+  for (const p of roofPanels) { p.matrixAutoUpdate = true; p.userData.home = p.position.clone(); }
+  const [slideX, slideUp] = meta.roofSlide || [47, 2.4];
+  const setRoof = (t) => roofPanels.forEach((p) => { const sg = p.name.endsWith('W') ? -1 : 1; p.position.set(p.userData.home.x + sg * slideX * t, p.userData.home.y + slideUp * t, p.userData.home.z); });
   if (mats.field?.map) { mats.field.map.anisotropy = 8; }
   if (lite) detail.visible = false;
 
@@ -54,6 +59,8 @@ export async function buildStadium(scene, { lite = false } = {}) {
   const geoOf = (r) => { const m = meshes(r)[0]; if (!m) return null; r.scene.updateMatrixWorld(true); const g = m.geometry.clone(); g.applyMatrix4(m.matrixWorld); return g; };
   const seatHi = geoOf(hi), seatLo = geoOf(lo) || new THREE.BoxGeometry(0.45, 0.8, 0.45).translate(0, 0.4, 0);
   const seatMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.42, metalness: 0, vertexColors: !!seatLo.attributes.color, envMapIntensity: 0.6 });
+  const markGeo = new THREE.SphereGeometry(0.42, 12, 8).translate(0, 1.0, 0);          // 건물 시점 표시 (의자 대신 공)
+  const markMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
   const F = new Float32Array(bin), seatGroup = new THREE.Group(), labels = new THREE.Group(); root.add(seatGroup, labels);
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), ONE = new THREE.Vector3(1, 1, 1), UP = new THREE.Vector3(0, 1, 0);
   const sections = []; let k = 0;
@@ -67,13 +74,18 @@ export async function buildStadium(scene, { lite = false } = {}) {
         face.x += Math.cos(yaw); face.z -= Math.sin(yaw);
       }
     }
-    const mesh = new THREE.InstancedMesh(seatLo, seatMat, s.seats.length);
+    const mesh = new THREE.InstancedMesh(s.view ? markGeo : seatLo, s.view ? markMat : seatMat, s.seats.length);
     s.color = new THREE.Color(s.g.color); s.realColor = new THREE.Color(meta.seatReal[s.grade] || '#8a1c24');
     s.seats.forEach((q, i) => { Q.setFromAxisAngle(UP, q.rot); M.compose(V.set(q.x, q.y, q.z), Q, ONE); mesh.setMatrixAt(i, M); mesh.setColorAt(i, s.color); });
     mesh.userData.section = s; mesh.frustumCulled = true; mesh.computeBoundingSphere(); s.mesh = mesh; seatGroup.add(mesh);
     const c = new THREE.Vector3(); for (const q of s.seats) c.add(V.set(q.x, q.y, q.z)); c.multiplyScalar(1 / s.seats.length);
     s.center = c; s.inward = face.normalize();
     s.left = new THREE.Vector3(s.inward.z, 0, -s.inward.x);            // 관중 기준 왼쪽
+    if (s.view) {                                                    // 평면도·미니맵용 띠 (층이 같은 자리에 겹치므로 앞줄 기준)
+      const r0 = s.seats.filter((q) => q.row === s.seats[0].row), a = r0[0], b = r0.at(-1), k = 5;
+      s.quad = [a, b, { x: b.x + s.inward.x * k, z: b.z + s.inward.z * k }, { x: a.x + s.inward.x * k, z: a.z + s.inward.z * k }];
+      c.y = s.seats.reduce((m, q) => Math.max(m, q.y), -1e9);
+    }
     const lb = labelSprite(s.id, s.g.color); lb.position.copy(c).add(new THREE.Vector3(0, 2.8, 0)); lb.userData.section = s; s.label = lb; labels.add(lb);
     sections.push(s);
   }
@@ -103,7 +115,7 @@ export async function buildStadium(scene, { lite = false } = {}) {
   const pt = ([x, y]) => ({ x, z: -y });
   return {
     meta, root, sections, labels, shell, net, detail, ball, concert, players, crowd: new THREE.Group(), mats, seatGroup,
-    seatHi, seatLo, total: sections.reduce((a, s) => a + s.seats.length, 0),
+    seatHi, seatLo, total: sections.reduce((a, s) => a + (s.view ? 0 : s.seats.length), 0), setRoof, roofPanels,
     polePts: [pt(meta.fence[0]), pt(meta.fence.at(-1))],
     fieldPoly: [...meta.wall.map(pt), ...meta.fence.map(pt)],          // 그라운드 경계 (평면도·미니맵용)
     fencePoly: meta.fence.map(pt),

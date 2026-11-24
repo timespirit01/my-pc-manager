@@ -69,7 +69,8 @@ if (baked) grade.uniforms.look.value = 0.6;
 
 // ── 상태 ─────────────────────────────────────────────
 let pano = null;                        // 사진급 360° 좌석 시야 (assets/panos)
-const state = { event: 'baseball', photo: true, auto: false, crowd: false, mode: 'overview', section: null, seat: null, seatIdx: -1, hover: null, hoverSeat: -1, filter: null, weekend: false };
+const RU = (s) => (s?.view ? '층' : '열');      // 행 단위: 좌석은 열, 건물 시점은 층
+const state = { roof: 'closed', event: 'baseball', photo: true, auto: false, crowd: false, mode: 'overview', section: null, seat: null, seatIdx: -1, hover: null, hoverSeat: -1, filter: null, weekend: false };
 const tmpL = new THREE.Color();
 const WHITE = new THREE.Color(0xffffff), YELLOW = new THREE.Color(0xffd400), GRAY = new THREE.Color(0x4a4d55), tmpC = new THREE.Color();
 
@@ -112,7 +113,8 @@ function setOffset() {            // 구역 화면: 카드가 가리는 만큼 �
   const w = canvas.clientWidth, h = canvas.clientHeight;
   if (state.mode === 'section') camera.setViewOffset(w, h, isMobile ? 0 : w * 0.1, isMobile ? h * 0.13 : -h * 0.03, w, h); else camera.clearViewOffset();
 }
-function shell(on) { st.shell.visible = on; scene.fog = on ? HAZE : null; }
+function shell(on) { st.shell.visible = on; scene.fog = on ? HAZE : null; if (typeof applyRoof === 'function' && roofReady) applyRoof(); }
+let roofReady = false;
 let hiddenP = null;
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 function hideOwnPerson(s, seat) {
@@ -139,7 +141,7 @@ function buildRowLabels(s) {
     const row = s.seats.filter((x) => x.row === r), a = row[0], b = row[row.length - 1];
     const c = document.createElement('canvas'); c.width = 128; c.height = 64; const g = c.getContext('2d');
     g.fillStyle = 'rgba(10,12,18,.85)'; g.beginPath(); g.roundRect(2, 2, 124, 60, 18); g.fill();
-    g.fillStyle = '#fff'; g.font = 'bold 36px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(`${r}열`, 64, 34);
+    g.fillStyle = '#fff'; g.font = 'bold 36px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(`${r}${RU(s)}`, 64, 34);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
     for (const [p, q] of [[a, b], [b, a]]) {            // 양쪽 끝에 표시
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, toneMapped: false, fog: false })); sp.scale.set(1.1, 0.55, 1); sp.renderOrder = 9;
@@ -155,11 +157,13 @@ function goSection(s, keepPanel = false) {
   if (prev && prev !== s) paint(prev); clearHover(); paint(s); setHash('');
   shell(true); st.labels.visible = false; hideOwnPerson(null);
   buildRowLabels(s);
-  const first = s.seats.filter((x) => x.row === s.seats[0].row), W = Math.hypot(first[0].x - first.at(-1).x, first[0].z - first.at(-1).z) + 4, Hh = s.rowCount * 0.75 + 3;
+  const ys = s.seats.map((x) => x.y), vH = Math.max(...ys) - Math.min(...ys);
+  const first = s.seats.filter((x) => x.row === s.seats[0].row), W = Math.hypot(first[0].x - first.at(-1).x, first[0].z - first.at(-1).z) + 4, Hh = s.view ? vH + 8 : s.rowCount * 0.75 + 3;
   const th = Math.tan((50 * Math.PI) / 360), dist = Math.max(9, 1.08 * Math.max(W / (2 * th * camera.aspect), Hh / (2 * th)));
-  const el = (52 * Math.PI) / 180, dir = s.inward.clone().multiplyScalar(Math.cos(el)).add(new THREE.Vector3(0, Math.sin(el), 0));
-  secView = { center: s.center.clone(), dir, dist: dist * (isMobile ? 1.12 : 1.3), k: 1 };
-  flyTo(s.center.clone().addScaledVector(dir, secView.dist), s.center, 50, 1300);
+  const el = ((s.view ? 10 : 52) * Math.PI) / 180, dir = s.inward.clone().multiplyScalar(Math.cos(el)).add(new THREE.Vector3(0, Math.sin(el), 0));
+  const cen = s.center.clone(); if (s.view) cen.y -= vH / 2;      // 건물은 정면에서 층 전체가 보이게
+  secView = { center: cen, dir, dist: dist * (isMobile ? 1.12 : 1.3), k: 1 };
+  flyTo(cen.clone().addScaledVector(dir, secView.dist), cen, 50, 1300);
   syncUI();
 }
 
@@ -179,7 +183,7 @@ function goSeat(s, idx, lookKey = defLook()) {
   pov.yaw = Math.atan2(-dir.x, -dir.z); pov.pitch = Math.asin(dir.y); pov.fov = innerHeight > innerWidth * 1.2 ? 78 : 62;   // 세로 화면은 좌우가 좁아 넓게
   const p = photoFor(); if (!p || p !== pano.current) pano?.hide(); pano?.preload(p);   // 같은 사진이면 그대로 두고, 다른 구역이면 3D 로 날아간 뒤 바꿔 끼움
   flyTo(eye, look, pov.fov, p && p === pano.current ? 500 : 1700, updatePano);
-  setHash(`#seat=${encodeURIComponent(s.id)}/${state.seat.row}/${state.seat.num}`);
+  setHash(`#seat=${encodeURIComponent(s.id)}/${state.seat.row}/${state.seat.num}` + (state.roof === 'open' ? '&roof=open' : ''));
   syncUI();
 }
 function lookAtKey(k) {
@@ -194,7 +198,7 @@ function applyPov() {
 }
 // 사진급 360°: 야구 모드의 좌석 시야에서, 고른 좌석과 가장 가까운 렌더 지점의 파노라마를 덮어 보여 준다
 function photoFor() {
-  if (!pano || !state.photo || state.mode !== 'seat' || state.event === 'concert' || !state.seat) return null;
+  if (!pano || !state.photo || state.mode !== 'seat' || state.event === 'concert' || state.roof === 'open' || !state.seat) return null;   // 사진은 지붕 닫힌 야구 장면만
   return pano.nearest(state.section.id, seatEye(state.seat));
 }
 function updatePano() {
@@ -204,13 +208,13 @@ function updatePano() {
 }
 function syncPhoto() {
   const p = photoFor(), b = $('#photoBadge'), btn = $('#btnPhoto');
-  btn.hidden = !pano || !pano.count || state.event === 'concert';
+  btn.hidden = !pano || !pano.count || state.event === 'concert' || state.roof === 'open';
   btn.textContent = state.photo ? '3D 모델로 보기' : '사진급 360° 보기'; btn.setAttribute('aria-pressed', state.photo);
   $('#btnCrowd').disabled = !!p;
   b.hidden = btn.hidden || state.mode !== 'seat';
   if (p) {
     const same = state.seat.row === p.row && state.seat.num === p.num;
-    b.textContent = (same ? '사진급 렌더' : `사진급 렌더 · ${p.row}열 ${p.num}번 시점`) + ' — 눌러서 3D 모델로';
+    b.textContent = (same ? '사진급 렌더' : `사진급 렌더 · ${p.row}${RU(state.section)} ${p.num}번 시점`) + ' — 눌러서 3D 모델로';
   } else b.textContent = '3D 모델 — 눌러서 사진급 360°로';
 }
 
@@ -257,8 +261,8 @@ canvas.addEventListener('pointermove', (e) => {
   canvas.style.cursor = s ? 'pointer' : 'grab';
   const tip = $('#tip');
   if (!s) { tip.hidden = true; return; }
-  if (hs >= 0) { const q = s.seats[hs]; $('#tipImg').hidden = true; $('#tipTxt').textContent = `${q.row}열 ${q.num}번 · 누르면 이 자리 시야`; }
-  else { $('#tipImg').hidden = false; $('#tipImg').src = thumb(s); $('#tipTxt').textContent = `${s.id}구역 · ${s.g.name} · ${priceText(s.g)}`; }
+  if (hs >= 0) { const q = s.seats[hs]; $('#tipImg').hidden = true; $('#tipTxt').textContent = `${q.row}${RU(s)} ${q.num}번 · 누르면 이 자리 시야`; }
+  else { $('#tipImg').hidden = false; $('#tipImg').src = thumb(s); $('#tipTxt').textContent = s.view ? `${s.id} · ${s.note}` : `${s.id}구역 · ${s.g.name} · ${priceText(s.g)}`; }
   tip.hidden = false;
   tip.style.left = Math.min(e.clientX + 14, innerWidth - 250) + 'px'; tip.style.top = Math.min(e.clientY + 14, innerHeight - (hs >= 0 ? 40 : 180)) + 'px';
 });
@@ -329,8 +333,9 @@ function syncCrumb() {
   const el = $('#crumbPath'); el.innerHTML = '';
   const link = (t, fn) => { const b = document.createElement('button'); b.textContent = t; b.onclick = fn; el.append(b); const i = document.createElement('i'); i.textContent = '›'; el.append(i); };
   link('전체', goOverview);
-  if (seatMode) { link(`${s.id}구역`, () => goSection(s)); const b = document.createElement('b'); b.textContent = `${state.seat.row}열 ${state.seat.num}번`; el.append(b); }
-  else { const b = document.createElement('b'); b.textContent = `${s.id}구역`; el.append(b); }
+  const sn = s.view ? s.id : `${s.id}구역`;
+  if (seatMode) { link(sn, () => goSection(s)); const b = document.createElement('b'); b.textContent = `${state.seat.row}${RU(s)} ${state.seat.num}번`; el.append(b); }
+  else { const b = document.createElement('b'); b.textContent = sn; el.append(b); }
 }
 
 // ── UI ───────────────────────────────────────────────
@@ -353,9 +358,9 @@ function fillSelect(sel, items, value) {
 }
 function buildPicker() {
   const groups = {};
-  for (const s of sections) (groups[`${s.zone} ${s.floor}층`] ||= []).push(s);
+  for (const s of sections) (groups[s.view ? '맞닿은 건물' : `${s.zone} ${s.floor}층`] ||= []).push(s);
   $('#selSection').innerHTML = '<option value="">구역 선택</option>' + Object.entries(groups).map(([g, list]) =>
-    `<optgroup label="${g}">${list.map((s) => `<option value="${s.id}">${s.id} · ${s.g.name}</option>`).join('')}</optgroup>`).join('');
+    `<optgroup label="${g}">${list.map((s) => `<option value="${s.id}">${s.id} · ${s.view ? s.note.split(' (')[0] : s.g.name}</option>`).join('')}</optgroup>`).join('');
 }
 function rowsOf(s) { return [...new Set(s.seats.map((x) => x.row))]; }
 function syncPicker() {
@@ -365,7 +370,7 @@ function syncPicker() {
   rs.disabled = ns.disabled = false;
   const row = state.seat ? state.seat.row : rs.dataset.sec === s.id ? +rs.value : 0; rs.dataset.sec = s.id; if (!row) ns.innerHTML = '';
   const rows = rowsOf(s); const r = rows.includes(row) ? row : rows[0];
-  fillSelect(rs, rows.map((x) => [x, `${x}열`]), r);
+  fillSelect(rs, rows.map((x) => [x, `${x}${RU(s)}`]), r);
   const nums = s.seats.filter((x) => x.row === r).map((x) => x.num);
   fillSelect(ns, nums.map((x) => [x, `${x}번`]), state.seat ? state.seat.num : nums.includes(+ns.value) ? +ns.value : Math.ceil(nums.length / 2));
 }
@@ -373,7 +378,7 @@ function syncPicker() {
 function updateLOD() {
   if (!st.seatHi) return;
   const f = state.mode === 'overview' || !state.section ? null : state.section.center;
-  for (const s of sections) { const g = f && s.center.distanceTo(f) < 38 ? st.seatHi : st.seatLo; if (s.mesh.geometry !== g) s.mesh.geometry = g; }
+  for (const s of sections) { if (s.view) continue; const g = f && s.center.distanceTo(f) < 38 ? st.seatHi : st.seatLo; if (s.mesh.geometry !== g) s.mesh.geometry = g; }
 }
 function syncUI() {
   updateLOD();
@@ -388,17 +393,17 @@ function syncUI() {
   if (!s) { card.hidden = true; $('#hint').textContent = '구역을 눌러 좌석을 선택하세요 · 드래그로 회전, 휠/핀치로 확대'; return; }
   card.hidden = false; syncCrumb(); drawMini();
   $('#cGrade').textContent = s.g.name; $('#cGrade').style.setProperty('--g', s.g.color);
-  $('#cTitle').textContent = `${s.id}구역` + (state.seat ? ` ${state.seat.row}열 ${state.seat.num}번` : '');
+  $('#cTitle').textContent = (s.view ? s.id : `${s.id}구역`) + (state.seat ? ` ${state.seat.row}${RU(s)} ${state.seat.num}번` : '');
   const behind = state.event === 'concert' && s.zone === '외야';
-  $('#cSub').textContent = `${s.zone} ${s.floor}층 · ${s.side}` + (s.g.note ? ` · ${s.g.note}` : '') + (behind ? ' · 무대 뒤(시야 제한)' : '');
-  $('#cPrice').textContent = priceText(s.g);
+  $('#cSub').textContent = s.view ? `${s.note} · 좌석이 아닌 건물 시점` : `${s.zone} ${s.floor}층 · ${s.side}` + (s.g.note ? ` · ${s.g.note}` : '') + (behind ? ' · 무대 뒤(시야 제한)' : '');
+  $('#cPrice').textContent = s.view ? '건물 시야' : priceText(s.g);
   if (state.seat) {
     const e = seatEye(state.seat), dH = Math.hypot(e.x, e.z), dM = Math.hypot(e.x, e.z + SPEC.mound);
     $('#cStats').innerHTML = `<div><b>${dH.toFixed(0)}m</b>홈플레이트</div><div><b>${dM.toFixed(0)}m</b>마운드</div><div><b>${e.y.toFixed(1)}m</b>눈높이</div>`;
     $('#hint').textContent = '드래그로 둘러보기 · 휠/핀치로 확대';
   } else {
-    $('#cStats').innerHTML = `<div><b>${s.seats.length}</b>좌석</div><div><b>${rowsOf(s).length}</b>열</div><div><b>${Math.hypot(s.center.x, s.center.z).toFixed(0)}m</b>홈까지</div>`;
-    $('#hint').textContent = '좌석을 누르면 그 자리에서 보는 시야로 이동합니다 · 휠/핀치로 확대';
+    $('#cStats').innerHTML = `<div><b>${s.seats.length}</b>${s.view ? '시점' : '좌석'}</div><div><b>${rowsOf(s).length}</b>${RU(s)}</div><div><b>${Math.hypot(s.center.x, s.center.z).toFixed(0)}m</b>홈까지</div>`;
+    $('#hint').textContent = (s.view ? '공 표시를 누르면 그 창가에서 보는 시야로 이동합니다' : '좌석을 누르면 그 자리에서 보는 시야로 이동합니다') + ' · 휠/핀치로 확대';
     $('#cThumb').src = thumb(s);
   }
 }
@@ -474,9 +479,34 @@ function setEvent(ev) {
   sections.forEach((s) => (s.thumb = null));
   document.body.dataset.event = ev;
   document.querySelectorAll('#eventSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.ev === ev));
-  syncUI(); if (state.mode === 'seat') { lookAtKey(defLook()); updatePano(); }
+  applyRoof(); syncUI(); if (state.mode === 'seat') { lookAtKey(defLook()); updatePano(); }
 }
 document.querySelectorAll('#eventSeg button').forEach((b) => (b.onclick = () => setEvent(b.dataset.ev)));
+
+// ── 지붕 열기/닫기 (개폐 방식은 가정: 가운데 두 장이 동·서로 열림) ──
+const SKY = new THREE.Color(0x9cc6ee), NIGHT = new THREE.Color(0x0b0e14);
+let roofT = 0, roofTween = null;
+function applyRoof() {
+  st.setRoof(roofT);
+  const c = state.event === 'concert', day = roofT * (c ? 0.25 : 1);
+  scene.background.copy(state.mode === 'overview' ? NIGHT : NIGHT.clone().lerp(SKY, roofT));      // 전체 보기는 지붕을 떼고 보므로 배경을 그대로 둠
+  if (!baked) { hemi.intensity = (c ? 0.4 : 1.25) + 0.9 * day; sun.intensity = (c ? 0.35 : 1.5) + 2.2 * day; }
+}
+function setRoof(v, instant = false) {
+  if (state.roof === v && !instant) return; state.roof = v;
+  document.querySelectorAll('#roofSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.roof === v));
+  const to = v === 'open' ? 1 : 0;
+  if (instant || reduceMotion) { roofT = to; roofTween = null; applyRoof(); } else roofTween = { t0: performance.now(), from: roofT, to, dur: 2600 };
+  sections.forEach((s) => (s.thumb = null));
+  if (state.mode === 'seat') { setHash(`#seat=${encodeURIComponent(state.section.id)}/${state.seat.row}/${state.seat.num}` + (v === 'open' ? '&roof=open' : '')); updatePano(); }
+  syncPhoto();
+}
+function stepRoof(now) {
+  if (!roofTween) return;
+  const k = Math.min(1, (now - roofTween.t0) / roofTween.dur), e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+  roofT = roofTween.from + (roofTween.to - roofTween.from) * e; if (k >= 1) roofTween = null; applyRoof();
+}
+document.querySelectorAll('#roofSeg button').forEach((b) => (b.onclick = () => setRoof(b.dataset.roof)));
 
 // ── 옆자리·앞뒤 열 이동 ──
 function stepSeat(dNum, dRow) {
@@ -493,7 +523,7 @@ function setAuto(on) { if (state.auto === on) return; state.auto = on; $('#btnAu
 $('#btnAuto').onclick = () => setAuto(!state.auto);
 
 // ── 좌석 배치도 / 정보 ──
-const plan = createPlan({ sections, fieldPoly: st.fieldPoly, fencePoly: st.fencePoly, polePts: st.polePts, centerZ: SPEC.centerZ, current: () => ({ section: state.section, seat: state.seat }), onPick: (s, i) => { plan.close(); closePanel(); goSeat(s, i); } });
+const plan = createPlan({ onSection: (s) => { plan.close(); closePanel(); goSection(s); }, sections, fieldPoly: st.fieldPoly, fencePoly: st.fencePoly, polePts: st.polePts, centerZ: SPEC.centerZ, current: () => ({ section: state.section, seat: state.seat }), onPick: (s, i) => { plan.close(); closePanel(); goSeat(s, i); } });
 $('#btnPlan').onclick = () => plan.open(); $('#btnPick').onclick = () => plan.open();
 $('#btnInfo').onclick = () => $('#infoDlg').showModal();
 $('#infoClose').onclick = () => $('#infoDlg').close();
@@ -513,6 +543,7 @@ function fromHash() {
   let id; try { id = decodeURIComponent(m[1]); } catch { return false; }
   const s = byId[id]; if (!s) return false;
   const i = s.seats.findIndex((x) => x.row === +m[2] && x.num === +m[3]); if (i < 0) return false;
+  setRoof(/roof=open/.test(location.hash) ? 'open' : 'closed', true);
   goSeat(s, i); return true;
 }
 let lastT = 0;
@@ -525,17 +556,17 @@ function resize() {
 addEventListener('resize', resize);
 addEventListener('hashchange', () => { if (!fromHash() && state.mode === 'seat') goOverview(); });
 
-buildLegend(); buildPicker(); resize(); camera.position.copy(HOME_VIEW); camera.lookAt(orbit.target);
+roofReady = true; buildLegend(); buildPicker(); resize(); camera.position.copy(HOME_VIEW); camera.lookAt(orbit.target);
 shell(false); syncUI();
 $('#seatTotal').textContent = st.total.toLocaleString();
 if (!fromHash()) { camera.position.set(0, 360, 300); flyTo(HOME_VIEW, orbit.target, 50, 1800, () => { orbit.enabled = true; }); }
 $('#loading').remove();
 pano = await createPano(renderer).catch(() => null);
 if (state.mode === 'seat') updatePano(); else syncPhoto();
-window.__app = { pano, baked, setEvent, plan, state, sections, goSection, goSeat, goOverview, goNeighbor, neighbor, thumb, st, camera };
+window.__app = { pano, baked, setEvent, setRoof, plan, state, sections, goSection, goSeat, goOverview, goNeighbor, neighbor, thumb, st, camera };
 
 renderer.setAnimationLoop((now) => {
-  stepTween(now);
+  stepTween(now); stepRoof(now);
   if (orbit.enabled && state.mode !== 'seat' && !tween) orbit.update();
   if (state.auto && state.mode === 'seat' && !tween && !reduceMotion) { pov.yaw -= Math.min(0.05, (now - lastT) / 1000) * 0.14; applyPov(); }
   lastT = now;

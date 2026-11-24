@@ -6,6 +6,7 @@
   python build_blend.py views  <views.json> <출력폴더> <가로> <세로> <샘플> [gpu]   조감도와 같은 시점 렌더
   python build_blend.py pano   <panos.json> <출력폴더> <가로> <샘플> [gpu] [시작:끝]   360° 등장방형
   python build_blend.py check  [panos.json]                     시야 자동 검사 (광선)
+  views·pano 뒤에 roof=open 을 붙이면 지붕이 열린 상태(낮 하늘)로 그린다
 
 필요: pip install bpy==5.3.0 numpy  ·  assets/field.jpg, board.jpg (tools/make_textures.py), seat_hi.glb
 """
@@ -21,7 +22,7 @@ import cheongna_mesh as M
 ROOT = os.path.normpath(os.path.join(HERE, '..', '..'))
 ASSETS = os.path.join(ROOT, 'assets')
 EYE = 1.14                                        # 앉은 눈높이 (좌석 바닥 기준, 고척돔과 같음)
-SEAT_REAL = {'FD': '#22304f', 'L1': '#8a1c24', 'TR': '#22304f', 'CL': '#22304f', 'U3': '#8a1c24', 'UT': '#8a1c24', 'OF': '#8a1c24'}   # [가정] 좌석 색
+SEAT_REAL = {'BV': '#35c2d6', 'FD': '#22304f', 'L1': '#8a1c24', 'TR': '#22304f', 'CL': '#22304f', 'U3': '#8a1c24', 'UT': '#8a1c24', 'OF': '#8a1c24'}   # [가정] 좌석 색
 
 
 def hex2lin(h):
@@ -111,7 +112,8 @@ def add_seats(sc, sections, hide_near=None):
     else: mix.inputs[7].default_value = (1, 1, 1, 1)
     nt.links.new(mix.outputs[2], b.inputs['Base Color'])
     src.data.materials.clear(); src.data.materials.append(m); src.name = 'seat_model'; src.hide_render = True
-    S = flat_seats(sections); P = np.array([(s[0], s[1], s[2]) for s in S], np.float32)
+    S = [s for s in flat_seats(sections) if not sections[s[4]].get('view')]      # 건물 시점은 의자가 없음
+    P = np.array([(s[0], s[1], s[2]) for s in S], np.float32)
     keep = np.ones(len(S), bool)
     if hide_near is not None and len(hide_near):                 # 카메라가 앉은 의자는 뺀다 (발밑이 가려지지 않게)
         c = np.array(hide_near, np.float32)
@@ -160,13 +162,28 @@ def world_and_cycles(sc, samples=32, gpu=False, exposure=0.0, world=0.05):
                     sc.cycles.device = 'GPU'; print('GPU', kind, [d.name for d in devs]); break
             except Exception as e: print('gpu', kind, e)
     sc.render.image_settings.file_format = 'JPEG'; sc.render.image_settings.quality = 92
+    if sc.get('roof_open', 0) > 0.5:                              # 지붕이 열리면 낮 하늘 + 해
+        bg = w.node_tree.nodes['Background']; bg.inputs['Color'].default_value = (0.35, 0.55, 0.95, 1); bg.inputs['Strength'].default_value = 1.6
+        sun = bpy.data.lights.new('sun', 'SUN'); sun.energy = 4.0; sun.angle = math.radians(1.0)
+        so = bpy.data.objects.new('sun', sun); sc.collection.objects.link(so); so.rotation_euler = (math.radians(38), 0, math.radians(200))
+
+
+ROOF = 0.0          # 0 = 지붕 닫힘, 1 = 열림 (명령줄 roof=open)
+
+def set_roof(sc, objs, t):
+    """지붕 패널을 동·서로 밀어 연다. 열리면 하늘빛과 햇빛을 켠다"""
+    dx, dz = M.ROOF_SLIDE
+    for name, sgn in (('roof_panel_W', -1), ('roof_panel_E', 1)):
+        objs[name].location = (sgn * dx * t, 0.0, dz * t)
+    sc['roof_open'] = t
 
 
 def scene(seats=True, detail=True, concert=False, hide_near=None):
     sc = reset()
     objs, info, cols = make_objects(sc, groups=('common', 'baseball', 'detail') if detail else ('common', 'baseball'), concert=concert)
-    sections = G.build_sections()
+    sections = G.build_sections() + M.view_sections()
     if seats: add_seats(sc, sections, hide_near)
+    set_roof(sc, objs, ROOF)
     return sc, objs, info, sections
 
 
@@ -243,9 +260,10 @@ def cmd_export(out):
     S = flat_seats(sections)
     with open(os.path.join(out, 'seats.bin'), 'wb') as f:
         f.write(np.array([(s[0], s[1], s[2], s[3]) for s in S], '<f4').tobytes())
-    meta = dict(spec=G.SPEC, grades=G.GRADES, seatReal=SEAT_REAL, eye=EYE, total=len(S), info={k: list(v) for k, v in info.items()},
-                fence=G.FENCE, wall=[PATH for PATH in G.PATH_A.p[::2]], roofTop=M.CEIL_Z,
+    meta = dict(spec=G.SPEC, grades=G.GRADES, seatReal=SEAT_REAL, eye=EYE, total=sum(1 for s in S if not sections[s[4]].get('view')), info={k: list(v) for k, v in info.items()},
+                fence=G.FENCE, wall=[PATH for PATH in G.PATH_A.p[::2]], roofTop=M.CEIL_Z, roofSlide=list(M.ROOF_SLIDE),
                 sections=[dict(id=s['id'], tier=s['tier'], floor=s['floor'], zone=s['zone'], grade=s['grade'], side=s['side'],
+                               **({'view': True, 'note': s['note']} if s.get('view') else {}),
                                rows=[[r['row'], len(r['seats'])] for r in s['rows']]) for s in sections])
     json.dump(meta, open(os.path.join(out, 'sections.json'), 'w'), ensure_ascii=False, separators=(',', ':'))
     pts = pano_points(sections); os.makedirs(os.path.join(ROOT, 'out'), exist_ok=True)
@@ -304,7 +322,8 @@ def cmd_check(listing=None, verbose=False):
 if __name__ == '__main__':
     argv = sys.argv[1:]; mode = argv[0]; gpu = 'gpu' in argv
     ONLY = [a[5:] for a in argv if a.startswith('only=')]
-    rest = [a for a in argv[1:] if a != 'gpu' and not a.startswith('only=')]
+    ROOF = 1.0 if 'roof=open' in argv else 0.0
+    rest = [a for a in argv[1:] if a != 'gpu' and not a.startswith('only=') and not a.startswith('roof=')]
     if mode == 'blend': cmd_blend(rest[0])
     elif mode == 'export': cmd_export(rest[0])
     elif mode == 'views': cmd_views(rest[0], rest[1], int(rest[2]), int(rest[3]), int(rest[4]), gpu)

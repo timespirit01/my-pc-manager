@@ -230,6 +230,7 @@ GRADES = {
     'U3': dict(name='3층 내야석', color='#2f73c0'),
     'UT': dict(name='3층 상단석', color='#2f9e8f', note='가로 통로 위쪽'),
     'OF': dict(name='외야석', color='#5f9a3a'),
+    'BV': dict(name='건물 시야', color='#35c2d6', note='경기장과 맞닿은 호텔·풀·상업 시설에서 보는 시야 (좌석 아님)'),
 }
 FIELD_ROWS = 8          # 1층 앞 8열은 필드석으로 나눔 (등급 구분은 가정)
 

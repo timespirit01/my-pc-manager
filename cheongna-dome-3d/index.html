@@ -110,9 +110,9 @@ body[data-event=concert] [data-look=home], body[data-event=concert] [data-look=m
 #btnAuto { flex:0 0 44px !important; font-size:16px !important; }
 #btnAuto[aria-pressed=true] { background:var(--acc); color:#15120a; border-color:transparent; }
 #tools { position:fixed; right:16px; top:60px; z-index:5; display:flex; gap:6px; align-items:center; }
-#eventSeg { display:flex; background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:3px; backdrop-filter:blur(10px); }
-#eventSeg button { background:none; border:0; border-radius:999px; padding:6px 13px; font-size:13px; cursor:pointer; min-height:32px; color:var(--sub); }
-#eventSeg button[aria-pressed=true] { background:var(--acc); color:#15120a; font-weight:800; }
+#eventSeg, #roofSeg { display:flex; background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:3px; backdrop-filter:blur(10px); }
+#eventSeg button, #roofSeg button { background:none; border:0; border-radius:999px; padding:6px 13px; font-size:13px; cursor:pointer; min-height:32px; color:var(--sub); }
+#eventSeg button[aria-pressed=true], #roofSeg button[aria-pressed=true] { background:var(--acc); color:#15120a; font-weight:800; }
 dialog { color:var(--txt); background:#141821; border:1px solid var(--line); border-radius:18px; padding:0; max-width:calc(100vw - 20px); }
 dialog::backdrop { background:rgba(0,0,0,.6); }
 #infoDlg { padding:20px; width:420px; }
@@ -180,6 +180,9 @@ dialog::backdrop { background:rgba(0,0,0,.6); }
   <div id="eventSeg" role="group" aria-label="행사 모드">
     <button data-ev="baseball" aria-pressed="true">야구</button><button data-ev="concert" aria-pressed="false">콘서트</button>
   </div>
+  <div id="roofSeg" role="group" aria-label="지붕">
+    <button data-roof="closed" aria-pressed="true">지붕 닫힘</button><button data-roof="open" aria-pressed="false">열림</button>
+  </div>
   <button class="btn icon" id="btnInfo" title="자료 근거와 한계" aria-label="자료 근거와 한계 보기">ⓘ</button>
   <button class="btn icon" id="btnFull" title="전체 화면" aria-label="전체 화면 전환">⛶</button>
 </div>
@@ -199,8 +202,10 @@ dialog::backdrop { background:rgba(0,0,0,.6); }
 <dialog id="infoDlg" aria-label="자료 근거와 한계">
   <h2>자료 근거와 한계</h2>
   <p><b>이 경기장은 건설 중입니다(2028년 개장 예정).</b> 화면은 공개된 조감도와 보도 자료를 바탕으로 만든 <b>설계 자료 기준 예상 시야</b>이며, 실제 시공 결과와 다를 수 있습니다.</p>
-  <p>공개 자료로 확인한 것: 좌석 수 약 2만 3,000석, 고정식 8각 지붕(높이 약 60m), 호텔·인피니티풀은 홈에서 볼 때 왼쪽, 쇼핑몰 연결부는 오른쪽, 메인 전광판 폭 약 100m.</p>
+  <p>공개 자료로 확인한 것: 좌석 수 약 2만 3,000석, 8각 지붕(높이 약 60m), 호텔·인피니티풀은 홈에서 볼 때 왼쪽, 쇼핑몰 연결부는 오른쪽, 메인 전광판 폭 약 100m.</p>
   <p>조감도에서 역산한 것: 펜스 거리(약 95m·120m), 관람석 3개 층의 위치와 높이, 전광판·호텔·외야 건물의 위치와 크기. 오차는 ±3m 안팎입니다.</p>
+  <p>지붕은 요청에 따라 <b>개폐식</b>으로 넣었습니다. 조사한 공개 자료에는 고정식으로 나와 있어, 여닫는 방식(가운데 두 장이 좌우로 열림)과 열린 크기는 가정입니다.</p>
+  <p>"건물" 구역(호텔·풀·테라스·석재관·유리관·타워·중견관)은 좌석이 아니라 경기장과 맞닿은 건물에서 보는 시점입니다. 층 높이와 창 위치는 가정입니다.</p>
   <p>가정한 것: 관람석 경사, 열 수, 좌석 폭, 통로 위치, 좌석 색, <b>구역 번호와 열·번호</b>(공개된 좌석 배치도가 없어 임의로 붙였습니다), 등급 구분. 요금은 발표되지 않았습니다. 콘서트 모드의 무대는 가상 배치입니다.</p>
   <button class="btn primary" id="infoClose">닫기</button>
 </dialog>

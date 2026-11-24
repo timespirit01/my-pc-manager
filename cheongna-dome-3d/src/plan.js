@@ -2,12 +2,12 @@
 const $ = (q) => document.querySelector(q);
 const SEAT_AT = 8, NUM_AT = 24, ROW_AT = 13;        // 이 배율(px/m) 이상에서 좌석 / 번호 / 열 표시
 
-export function createPlan({ sections, fieldPoly, fencePoly, polePts, centerZ, current, onPick }) {
+export function createPlan({ onSection, sections, fieldPoly, fencePoly, polePts, centerZ, current, onPick }) {
   const dlg = $('#plan'), cv = $('#planCv'), g = cv.getContext('2d');
   let floor = 1, W = 0, H = 0, dpr = 1, base = 1, v = { x: 0, z: centerZ, s: 1 };
   for (const s of sections) {
     const r0 = s.seats.filter((q) => q.row === s.seats[0].row), r1 = s.seats.filter((q) => q.row === s.seats.at(-1).row);
-    s.quad = [r0[0], r0.at(-1), r1.at(-1), r1[0]];
+    s.quad ||= [r0[0], r0.at(-1), r1.at(-1), r1[0]];
     const xs = s.seats.map((q) => q.x), zs = s.seats.map((q) => q.z);
     s.box = [Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs)];
     s.rowStart = {}; for (const q of s.seats) if (!s.rowStart[q.row]) s.rowStart[q.row] = [q, null]; for (const q of s.seats) s.rowStart[q.row][1] = q;
@@ -29,13 +29,13 @@ export function createPlan({ sections, fieldPoly, fencePoly, polePts, centerZ, c
     g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 1; g.beginPath(); for (const p of polePts) { g.moveTo(X(0), Z(0)); g.lineTo(X(p.x), Z(p.z)); } g.stroke();
     g.fillStyle = 'rgba(255,255,255,.55)'; g.font = '12px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText('홈', X(0), Z(6)); g.fillText('외야', X(0), Z(-95)); g.fillText('호텔', X(-88), Z(-52)); g.fillText('전광판', X(-38), Z(-128)); g.fillText('쇼핑몰', X(72), Z(-98));
-    const cur = current(), seatsOn = v.s >= SEAT_AT;
+    const cur = current(), zoomed = v.s >= SEAT_AT;
     for (const s of sections) if (s.floor !== floor) {            // 다른 층은 윤곽만
       g.beginPath(); s.quad.forEach((q, i) => (i ? g.lineTo(X(q.x), Z(q.z)) : g.moveTo(X(q.x), Z(q.z)))); g.closePath(); g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 1; g.stroke();
     }
     for (const s of onFloor()) {
       const [x0, z0, x1, z1] = s.box; if (X(x1) < -30 || X(x0) > W + 30 || Z(z1) < -30 || Z(z0) > H + 30) continue;
-      const isCur = cur.section === s;
+      const isCur = cur.section === s, seatsOn = zoomed && !s.view;      // 건물 시점은 층이 겹쳐 평면도에서는 띠로만 표시
       g.beginPath(); s.quad.forEach((q, i) => (i ? g.lineTo(X(q.x), Z(q.z)) : g.moveTo(X(q.x), Z(q.z)))); g.closePath();
       g.globalAlpha = seatsOn ? 0.16 : 0.9; g.fillStyle = s.g.color; g.fill(); g.globalAlpha = 1;
       g.lineWidth = isCur ? 2.5 : 1; g.strokeStyle = isCur ? '#ffd400' : 'rgba(255,255,255,.35)'; g.stroke();
@@ -55,17 +55,17 @@ export function createPlan({ sections, fieldPoly, fencePoly, polePts, centerZ, c
         }
       }
       const cx = X((x0 + x1) / 2), cy = Z((z0 + z1) / 2), wpx = (x1 - x0 + z1 - z0) * v.s * 0.5;
-      if (!seatsOn && wpx > 16) { g.font = `bold ${Math.round(Math.min(18, Math.max(9, wpx * 0.3)))}px sans-serif`; g.fillStyle = '#fff'; g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 3; g.strokeText(s.id, cx, cy); g.fillText(s.id, cx, cy); }
+      if (!seatsOn && (wpx > 16 || s.view)) { g.font = `bold ${Math.round(Math.min(18, Math.max(9, wpx * 0.3)))}px sans-serif`; g.fillStyle = '#fff'; g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 3; g.strokeText(s.id, cx, cy); g.fillText(s.id, cx, cy); }
       else if (seatsOn) { g.font = 'bold 13px sans-serif'; g.fillStyle = '#ffd400'; g.strokeStyle = 'rgba(0,0,0,.75)'; g.lineWidth = 3; const ty = Z(z0) - 12; g.strokeText(`${s.id}구역`, cx, ty); g.fillText(`${s.id}구역`, cx, ty); }
     }
-    $('#planHint').textContent = seatsOn ? '좌석을 누르면 그 자리에서 보는 시야로 이동합니다' : '구역을 누르면 확대됩니다 · 휠/핀치로 확대, 드래그로 이동';
+    $('#planHint').textContent = zoomed ? '좌석을 누르면 그 자리에서 보는 시야로 이동합니다' : '구역을 누르면 확대됩니다 · 휠/핀치로 확대, 드래그로 이동';
   }
 
   function pick(px, py) {
     const x = v.x + (px - W / 2) / v.s, z = v.z + (py - H / 2) / v.s;
     if (v.s >= SEAT_AT) {
       let best = null, bd = 0.5;
-      for (const s of onFloor()) { const [x0, z0, x1, z1] = s.box; if (x < x0 - 1 || x > x1 + 1 || z < z0 - 1 || z > z1 + 1) continue; s.seats.forEach((q, i) => { const d = Math.hypot(q.x - x, q.z - z); if (d < bd) { bd = d; best = [s, i]; } }); }
+      for (const s of onFloor()) { if (s.view) continue; const [x0, z0, x1, z1] = s.box; if (x < x0 - 1 || x > x1 + 1 || z < z0 - 1 || z > z1 + 1) continue; s.seats.forEach((q, i) => { const d = Math.hypot(q.x - x, q.z - z); if (d < bd) { bd = d; best = [s, i]; } }); }
       if (best) return { seat: best };
     }
     let sec = null, bd = 9;
@@ -85,7 +85,7 @@ export function createPlan({ sections, fieldPoly, fencePoly, polePts, centerZ, c
     ptrs.delete(e.pointerId); const d = down; if (ptrs.size === 0) down = null;
     if (!d || d.moved || e.type === 'pointercancel') return;
     const r = cv.getBoundingClientRect(), h = pick(e.clientX - r.left, e.clientY - r.top); if (!h) return;
-    if (h.seat) onPick(h.seat[0], h.seat[1]); else fit(h.section);
+    if (h.seat) onPick(h.seat[0], h.seat[1]); else if (h.section.view) onSection(h.section); else fit(h.section);
   };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   cv.addEventListener('wheel', (e) => { e.preventDefault(); const r = cv.getBoundingClientRect(); zoomAt(e.deltaY > 0 ? 0.87 : 1.15, e.clientX - r.left, e.clientY - r.top); }, { passive: false });
@@ -95,7 +95,7 @@ export function createPlan({ sections, fieldPoly, fencePoly, polePts, centerZ, c
   const tabs = $('#planFloors');
   function setFloor(f) { floor = f; tabs.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.f === f)); draw(); }
   for (const f of [...new Set(sections.map((s) => s.floor))].sort()) {
-    const b = document.createElement('button'); b.dataset.f = f; b.textContent = `${f}층`; b.onclick = () => setFloor(f); tabs.append(b);
+    const b = document.createElement('button'); b.dataset.f = f; b.textContent = f === 9 ? '건물' : `${f}층`; b.onclick = () => setFloor(f); tabs.append(b);
   }
   addEventListener('resize', () => { if (dlg.open) { size(); draw(); } });
 

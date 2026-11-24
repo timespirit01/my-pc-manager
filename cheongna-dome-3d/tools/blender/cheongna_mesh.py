@@ -327,6 +327,7 @@ BACKD = G.BACK
 
 # ───────── 지붕 ─────────
 RINGS = [1.0, 0.86, 0.70, 0.54, 0.38, 0.22]
+ROOF_SLIDE = (XW * (1 - 0.54), 2.4)      # 지붕이 열릴 때 패널 이동량: 동·서로 약 47 m, 위로 2.4 m (고정 지붕 위로 올라탐)
 NRAD = 48
 
 def build_roof():
@@ -337,25 +338,34 @@ def build_roof():
         for z0, z1, m in ((0, RIM_Z - 7.0, 'wall_dark'), (RIM_Z - 7.0, RIM_Z - 1.0, 'glass_top'), (RIM_Z - 1.0, RIM_Z + 4.0, 'wall_dark')):
             shell.quad(p3(b, z0), p3(a, z0), p3(a, z1), p3(b, z1), m)
     gnd = O('ground_slab'); gnd.face([p3(p, -0.8) for p in rim], 'wall_gray')      # 그라운드와 겹쳐 깜박이지 않게 충분히 아래
-    sk = O('roof_skin'); rings = [oct_ring(r, NRAD) for r in RINGS]
-    T = 4.0                                                    # 철골 춤 (위현재 = 지붕면)
+    # 개폐식 지붕 (사용자 지정 · 개폐 방식은 가정): 조명 고리 안쪽(ρ ≤ 0.54)이 동·서 두 장의 패널로 나뉘어
+    # 바깥 고정 지붕 위로 미끄러져 열린다. 고정부 = roof_skin·roof_truss, 이동부 = roof_panel_W·roof_panel_E
+    rings = [oct_ring(r, NRAD) for r in RINGS]; T = 4.0          # T: 철골 춤 (위현재 = 지붕면)
+    KP = 3                                                     # 이 고리(ρ = RINGS[KP])부터 안쪽이 이동 패널
+    def part(k, mid):                                          # (객체 접미사) 고정부면 None
+        return None if k < KP else ('W' if mid[0] < RC[0] else 'E')
+    def SK(pn): return O('roof_skin') if pn is None else O('roof_panel_' + pn)
+    def TR(pn): return O('roof_truss') if pn is None else O('roof_panel_' + pn)
     for k in range(len(RINGS) - 1):
         for j in range(NRAD):
             j2 = (j + 1) % NRAD; z0, z1 = roof_z(RINGS[k]) + T, roof_z(RINGS[k + 1]) + T
-            sk.quad(p3(rings[k][j2], z0), p3(rings[k][j], z0), p3(rings[k + 1][j], z1), p3(rings[k + 1][j2], z1), 'roof_skin')
-    # 중앙 미디어 천장 (사각 철골 구조물 아래)
-    led = O('roof_led'); c = rings[-1]; kl = 3                    # 조명 고리 안쪽(ρ ≤ 0.54) 전체가 미디어 천장
-    for k in range(kl, len(RINGS) - 1):
-        for j in range(NRAD):
-            j2 = (j + 1) % NRAD; z0, z1 = roof_z(RINGS[k]) + T - 0.4, roof_z(RINGS[k + 1]) + T - 0.4
-            led.quad(p3(rings[k][j2], z0), p3(rings[k][j], z0), p3(rings[k + 1][j], z1), p3(rings[k + 1][j2], z1), 'roof_led')
-    led.face([p3(p, roof_z(RINGS[-1]) + T - 0.4) for p in c[::-1]], 'roof_led')
-    sk.face([p3(p, roof_z(RINGS[-1]) + T) for p in c[::-1]], 'roof_skin')
-    tr = O('roof_truss')
+            q = [rings[k][j2], rings[k][j], rings[k + 1][j], rings[k + 1][j2]]
+            pn = part(k, lerp(lerp(q[0], q[1], .5), lerp(q[2], q[3], .5), .5))
+            SK(pn).quad(p3(q[0], z0), p3(q[1], z0), p3(q[2], z1), p3(q[3], z1), 'roof_skin')
+            if pn:                                             # 패널 아랫면: 미디어 천장
+                SK(pn).quad(p3(q[0], z0 - 0.4), p3(q[1], z0 - 0.4), p3(q[2], z1 - 0.4), p3(q[3], z1 - 0.4), 'roof_led')
+    c = rings[-1]; zc = roof_z(RINGS[-1]) + T                  # 가운데 덮개도 동·서로 나눔
+    for pn, sel in (('W', lambda p: p[0] <= RC[0] + 1e-6), ('E', lambda p: p[0] >= RC[0] - 1e-6)):
+        half = [p for p in c if sel(p)]
+        half.sort(key=lambda p: math.atan2(p[1] - RC[1], (p[0] - RC[0]) * (1 if pn == 'E' else -1)))
+        SK(pn).face([p3(p, zc) for p in half], 'roof_skin'); SK(pn).face([p3(p, zc - 0.4) for p in half], 'roof_led')
+        ys = [p[1] for p in half]                              # 패널이 맞닿는 가운데 이음매 보
+        SK(pn).beam((RC[0], min(ys) - 0.0, zc - 2.0), (RC[0], max(ys), zc - 2.0), 0.5, 'truss', 4.0)
     for k, r in enumerate(RINGS):
         zb = roof_z(r); deep = 7.0 if k == 0 else T; w = 0.55 if k == 0 else 0.38
         for j in range(NRAD):
             j2 = (j + 1) % NRAD; a, b = rings[k][j], rings[k][j2]
+            tr = TR(part(k, lerp(a, b, .5)) if k > KP else None)        # ρ = 0.54 고리는 열리는 구멍의 테두리라 고정부
             tr.beam(p3(a, zb), p3(b, zb), w, 'truss'); tr.beam(p3(a, zb + deep), p3(b, zb + deep), w, 'truss')
             tr.beam(p3(a, zb), p3(a, zb + deep), w * 0.7, 'truss')
             if j % 2 == 0: tr.beam(p3(a, zb), p3(b, zb + deep), w * 0.6, 'truss')
@@ -364,6 +374,7 @@ def build_roof():
             zb2 = roof_z(RINGS[k + 1])
             for j in range(NRAD):
                 a, b = rings[k][j], rings[k + 1][j]; m_ = lerp(a, b, 0.5); zm = (zb + zb2) / 2
+                tr = TR(part(k, lerp(m_, rings[k][(j + 1) % NRAD], 0.5)))           # 이음매 위 부재는 가새가 뻗는 쪽 패널에 붙임
                 tr.beam(p3(a, zb), p3(b, zb2), 0.34, 'truss'); tr.beam(p3(a, zb + T), p3(b, zb2 + T), 0.34, 'truss')
                 tr.beam(p3(a, zb), p3(m_, zm + T), 0.2, 'truss'); tr.beam(p3(m_, zm + T), p3(b, zb2), 0.2, 'truss')
                 if j % 2 == 0:                                   # 지붕면 대각 가새
@@ -495,6 +506,43 @@ def build_hotel():
     return dict(pool=H((px0 + px1) / 2, -1.0, T + 0.9 + 0.55), room=H(L * 0.7, -1.2, HOTEL_Z0 + FLOOR_H * 3 + 1.3))
 
 
+# ───────── 맞닿은 건물에서 보는 시야 ─────────
+VIEW_EYE = 1.55 - 1.14      # 서서 보는 눈높이 1.55 m (앱은 좌석 바닥 + 1.14 m 를 눈높이로 쓰므로 그 차이만큼 올려 적음)
+
+def view_sections():
+    """경기장과 맞닿은 건물의 시점들. 좌석 구역과 같은 형식(행 = 층, 번호 = 창 위치)이라 앱·렌더·시야 검사가 그대로 쓴다.
+    건물 위치·높이는 조감도 역산, 층 높이와 창 위치는 가정."""
+    out = []
+    def sec(sid, note, side, rows):
+        out.append(dict(id=sid, tier='BLD', floor=9, zone='건물', grade='BV', side=side, view=True, note=note,
+                        rows=[dict(row=i + 1, z=z + VIEW_EYE, seats=s) for i, (z, s) in enumerate(rows)]))
+    # 호텔 (좌익 폴 뒤): 층마다 객실 발코니 10곳
+    o, X, Y, L = hotel_frame(); FIN = 3.7; yaw = math.atan2(Y[1], Y[0])
+    H = lambda x, y: (o[0] + X[0] * x + Y[0] * y, o[1] + X[1] * x + Y[1] * y)
+    rows = []
+    for n in range(HOTEL_FLOORS):
+        z = HOTEL_Z0 + n * FLOOR_H + 0.25
+        rows.append((z, [(*H(FIN * (k + 0.5), 1.9 if k in (5, 6) else 0.45), yaw) for k in range(9, -1, -1)]))
+    sec('호텔', '호텔 객실 발코니 (좌익 폴 뒤, 층 = 모델의 객실 층)', '좌익', rows)
+    # 인피니티풀 (호텔 옥상, 그라운드 쪽 가장자리)
+    px0, px1 = L * 0.06, L * 0.62; T = HOTEL_TOP + 1.2; n = 7
+    sec('풀', '인피니티풀 가장자리 (호텔 옥상, 위치는 가정)', '좌익',
+        [(T + 0.9 + 0.55 - 1.55, [(*H(px1 - 1.5 - (px1 - px0 - 3.0) * k / (n - 1), 0.3), yaw) for k in range(n)])])
+    # 외야 건물: 펜스 선분을 앞면으로, 바깥으로 f m 물러난 줄에 step 간격
+    def line(b0, b1, f, step=4.0):
+        a, b = fence_pt(b0), fence_pt(b1); Lb = hyp(a, b); d = ((b[0] - a[0]) / Lb, (b[1] - a[1]) / Lb); nn = (d[1], -d[0])
+        if nn[0] * (lerp(a, b, .5)[0]) + nn[1] * (lerp(a, b, .5)[1] - 45.0) < 0: nn = (-nn[0], -nn[1])
+        k = max(2, int(Lb // step)); yw = math.atan2(-nn[1], -nn[0])
+        pts = [(*add(add(a, d, Lb * (i + 0.5) / k), nn, f), yw) for i in range(k)]
+        return pts                                               # 방위가 큰 쪽(관중 기준 오른쪽)이 1번
+    sec('테라스', '우익 펜스 뒤 테라스 (쇼핑몰 연결부)', '우익', [(5.0, line(65.0, 46.5, 2.0, 3.0))])
+    sec('석재관', '우익 석재 건물 창가 (층 높이는 가정)', '우익', [(z, line(55.5, 47.5, 9.9)) for z in (17.2, 21.2, 28.2, 32.7)])
+    sec('유리관', '우중간 유리 건물 창가 (층 높이는 가정)', '우익', [(z, line(68.0, 58.0, 13.2)) for z in (15.3, 22.8, 30.3, 38.3)])
+    sec('타워', '우중간~중견 타워 창가 (층 높이는 가정)', '중견', [(z, line(84.0, 70.0, 12.9)) for z in (21.3, 26.8, 32.3, 38.3)])
+    sec('중견관', '중견 펜스 뒤 시설 창가', '중견', [(12.3, line(95.0, 90.4, 2.9, 3.0) + line(89.6, 85.5, 2.9, 3.0))])
+    return out
+
+
 # ───────── 콘서트 (가상 배치) ─────────
 def build_concert():
     cv = O('concert_cover', 'concert'); poly = field_poly(); c = (0.0, 52.0)
@@ -535,6 +583,7 @@ def build(concert=True):
 
 if __name__ == '__main__':
     geo, info = build()
+    for s in view_sections(): print('view', s['id'], [len(r['seats']) for r in s['rows']])
     tot = 0
     for o in geo.values():
         tot += len(o.F); print(f'{o.name:22s} {o.group:9s} faces {len(o.F)}')
