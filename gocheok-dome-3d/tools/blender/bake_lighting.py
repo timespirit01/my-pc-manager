@@ -151,6 +151,14 @@ def preview(seat_idx):
     cam.rotation_euler = (tb(0, 1, -18.44) - cam.location).to_track_quat('-Z', 'Y').to_euler()
     sc.camera = cam
     sc.render.resolution_x, sc.render.resolution_y = 880, 512
+    if os.environ.get('PANO'):                       # 360° 등장방형 파노라마 (좌석 시야 사전 렌더링용)
+        cam.data.type = 'PANO'
+        try:
+            cam.data.panorama_type = 'EQUIRECTANGULAR'
+        except AttributeError:
+            cam.data.cycles.panorama_type = 'EQUIRECTANGULAR'
+        cam.rotation_euler = (math.radians(90), 0, math.atan2(-(cam.location.x), cam.location.y - 18.44) if False else 0)
+        w = int(os.environ['PANO']); sc.render.resolution_x, sc.render.resolution_y = w, w // 2
     sc.cycles.samples = int(REST[1]) if len(REST) > 1 else 64; sc.cycles.use_denoising = True
     sc.render.filepath = OUT
     t0 = time.time(); bpy.ops.render.render(write_still=True); print('render sec', round(time.time() - t0, 1))
