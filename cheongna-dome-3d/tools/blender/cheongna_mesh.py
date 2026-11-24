@@ -16,9 +16,11 @@ MATS = {
     'base_white': ((0.92, 0.92, 0.90), .6, 0, 0, None, 1),
     'pad_navy': ((0.035, 0.07, 0.16), .7, 0, 0, None, 1),      # 내야 벽·펜스 패드
     'pad_top': ((0.85, 0.72, 0.10), .6, 0, 0, None, 1),        # 펜스 위 노란 띠
+    'pad_fence': ((0.045, 0.075, 0.085), .7, 0, 0, None, 1),   # 외야 펜스 패드: 짙은 청록 회색 [조감도 화소 확인]
+    'led_logo': ((0.8, 0.8, 0.8), .4, 0, 1.4, (0.95, 0.95, 1.0), 1),           # 띠 전광판의 흰 로고
     'pole': ((0.92, 0.80, 0.10), .5, 0, 0, None, 1),
-    'concrete': ((0.34, 0.345, 0.35), .85, 0, 0, None, 1),     # 관람석 단
-    'aisle': ((0.50, 0.50, 0.50), .8, 0, 0, None, 1),          # 계단 통로
+    'concrete': ((0.24, 0.245, 0.25), .85, 0, 0, None, 1),     # 관람석 단
+    'aisle': ((0.36, 0.36, 0.365), .8, 0, 0, None, 1),         # 계단 통로
     'nosing': ((0.85, 0.72, 0.10), .6, 0, 0, None, 1),         # 계단 끝 노란 디딤판
     'wall_dark': ((0.075, 0.08, 0.09), .7, 0, 0, None, 1),
     'wall_gray': ((0.26, 0.265, 0.275), .75, 0, 0, None, 1),
@@ -31,18 +33,18 @@ MATS = {
     'led_ad': ((0.03, 0.02, 0.02), .3, 0, 1.1, (0.90, 0.40, 0.25), 1),         # 보조 전광판
     'board_frame': ((0.03, 0.03, 0.035), .5, 0, 0, None, 1),
     'glass_suite': ((0.05, 0.07, 0.07), .08, 0, 0.30, (1.0, 0.86, 0.62), 1),    # 스위트·스카이박스 유리 (실내등)
-    'glass_shop': ((0.10, 0.11, 0.13), .12, 0, 0.45, (1.0, 0.90, 0.72), 1),
-    'glass_top': ((0.13, 0.15, 0.18), .12, 0, 0.22, (0.80, 0.88, 1.0), 1),      # 지붕 아래 채광 유리
+    'glass_shop': ((0.10, 0.11, 0.13), .12, 0, 0.8, (1.0, 0.90, 0.72), 1),
+    'glass_top': ((0.13, 0.15, 0.18), .08, 0, 0.4, (0.80, 0.88, 1.0), 1),      # 지붕 아래 채광 유리
     'glass_rail': ((0.55, 0.65, 0.68), .05, 0, 0, None, 0.16),
     'steel': ((0.60, 0.62, 0.66), .45, .7, 0, None, 1),        # 난간
     'truss': ((0.62, 0.64, 0.67), .5, .5, 0, None, 1),         # 지붕 철골
     'roof_skin': ((0.045, 0.05, 0.06), .8, 0, 0, None, 1),
-    'roof_led': ((0.05, 0.03, 0.07), .5, 0, 0.16, (0.50, 0.35, 0.80), 1),       # 지붕 중앙 미디어 천장
-    'lamp': ((0.9, 0.9, 0.9), .3, 0, 60.0, (1.0, 0.97, 0.90), 1),              # 경기 조명
+    'roof_led': ((0.05, 0.03, 0.07), .5, 0, 0.42, (0.50, 0.33, 0.85), 1),       # 지붕 중앙 미디어 천장
+    'lamp': ((0.9, 0.9, 0.9), .3, 0, 200.0, (1.0, 0.97, 0.90), 1),              # 경기 조명
     'lamp_body': ((0.05, 0.05, 0.055), .5, .3, 0, None, 1),
     'net': ((0.02, 0.02, 0.02), .6, 0, 0, None, 0.13),
     'hotel_white': ((0.82, 0.80, 0.76), .65, 0, 0, None, 1),
-    'hotel_room': ((0.50, 0.45, 0.38), .8, 0, 0.35, (1.0, 0.85, 0.65), 1),
+    'hotel_room': ((0.50, 0.45, 0.38), .8, 0, 0.9, (1.0, 0.85, 0.65), 1),
     'wood': ((0.45, 0.27, 0.15), .6, 0, 0, None, 1),
     'water': ((0.02, 0.12, 0.15), .04, 0, 0, None, 1),
     'pool_tile': ((0.58, 0.70, 0.74), .3, 0, 0, None, 1),
@@ -220,6 +222,9 @@ def build_stands():
     t = TIER['U3']; d3, z3 = tier_back(t)
     rb = O('led_ribbon')
     ribbon(rb, B, G.HOTEL_S, B.len, 0.0, G.U3_Z - 1.25, 0.0, G.U3_Z + 0.05, 'led_ribbon', flip=True)
+    lg = O('led_logos'); s = G.HOTEL_S + 2.0                       # 검은 띠 위 흰 로고 (조감도) — 내용은 가상
+    while s < B.len - 2.0:
+        lg.quad(p3(B.at(s, -0.04), G.U3_Z - 0.95), p3(B.at(s + 1.7, -0.04), G.U3_Z - 0.95), p3(B.at(s + 1.7, -0.04), G.U3_Z - 0.3), p3(B.at(s, -0.04), G.U3_Z - 0.3), 'led_logo'); s += 4.6
     ribbon(w, B, G.HOTEL_S, B.len, 0.0, G.U3_Z - 1.1, 2.4, G.U3_Z - 1.1, 'soffit')
     ribbon(w, B, G.HOTEL_S, B.len, 2.4, G.U3_Z - 1.1, dc + 1.6, zc + 3.7, 'soffit')
     ribbon(w, B, G.HOTEL_S, B.len, 0.0, G.U3_Z + 0.05, 0.9, G.U3_Z, 'concrete')
@@ -292,14 +297,14 @@ def build_field():
     w = O('wall_infield'); ribbon(w, PATH_A, 0, PATH_A.len, 0, 0, 0, 1.15, 'pad_navy', flip=True)
     ribbon(w, PATH_A, 0, PATH_A.len, 0, 1.15, 0.78, 1.15, 'pad_navy')
     fe = O('fence'); h = G.SPEC['fence_h']
-    poly_ribbon(fe, G.FENCE[::-1], 0, h - 0.15, 'pad_navy'); poly_ribbon(fe, G.FENCE[::-1], h - 0.15, h, 'pad_top')
+    poly_ribbon(fe, G.FENCE[::-1], 0, h - 0.15, 'pad_fence'); poly_ribbon(fe, G.FENCE[::-1], h - 0.15, h, 'pad_top')
     for a, c2 in zip(G.FENCE, G.FENCE[1:]):                                   # 펜스 윗면 (두께 0.6 m)
         e = sub(c2, a); L = hyp(a, c2); nn = (e[1] / L, -e[0] / L)
         if nn[0] * a[0] + nn[1] * a[1] < 0: nn = (-nn[0], -nn[1])
-        fe.quad(p3(a, h), p3(c2, h), p3(add(c2, nn, 1.0), h), p3(add(a, nn, 1.0), h), 'pad_navy')
+        fe.quad(p3(a, h), p3(c2, h), p3(add(c2, nn, 1.0), h), p3(add(a, nn, 1.0), h), 'pad_fence')
     po = O('foul_poles', 'baseball')
     for p in (G.FENCE[0], G.FENCE[-1]):
-        po.beam(p3(p, 0), p3(p, 24.0), 0.28, 'pole')
+        po.beam(p3(p, 0), p3(p, 24.0), 0.18, 'pole')
         d = u(45) if p[0] > 0 else u(135)                                     # 폴에서 파울 지역 쪽으로 달린 그물판
         for z in (h + 1.0, 24.0): po.beam(p3(p, z), p3(add(p, (d[1], -d[0]) if p[0] > 0 else (-d[1], d[0]), 1.1), z), 0.08, 'pole')
     # 더그아웃 (1루 홈 / 3루 원정): 벽 앞으로 3.6 m, 길이 22 m
@@ -319,16 +324,16 @@ def build_field():
     nt = O('net', 'baseball'); s0, s1 = G._a(3, 30), G._a(1, 30); st = PATH_A.stations(s0, s1)
     for a, c2 in zip(st, st[1:]): nt.quad(p3(PATH_A.at(a, -0.15), 1.15), p3(PATH_A.at(c2, -0.15), 1.15), p3(PATH_A.at(c2, -0.15), 10.0), p3(PATH_A.at(a, -0.15), 10.0), 'net')
     np_ = O('net_posts', 'baseball')
-    for s in (s0, s1): np_.beam(p3(PATH_A.at(s, -0.15), 0), p3(PATH_A.at(s, -0.15), 10.0), 0.14, 'wall_dark')
-    for a, c2 in zip(st, st[1:]): np_.beam(p3(PATH_A.at(a, -0.15), 10.0), p3(PATH_A.at(c2, -0.15), 10.0), 0.05, 'wall_dark')
+    for s in (s0, s1): np_.beam(p3(PATH_A.at(s, -0.15), 0), p3(PATH_A.at(s, -0.15), 10.0), 0.08, 'wall_dark')
+    for a, c2 in zip(st, st[1:]): np_.beam(p3(PATH_A.at(a, -0.15), 10.0), p3(PATH_A.at(c2, -0.15), 10.0), 0.03, 'wall_dark')
 
 BACKD = G.BACK
 
 
 # ───────── 지붕 ─────────
-RINGS = [1.0, 0.86, 0.70, 0.54, 0.38, 0.22]
+RINGS = [1.0, 0.90, 0.80, 0.70, 0.62, 0.54, 0.44, 0.33, 0.22]     # 조명은 0.80·0.62 고리(캣워크)에 달림
 ROOF_SLIDE = (XW * (1 - 0.54), 2.4)      # 지붕이 열릴 때 패널 이동량: 동·서로 약 47 m, 위로 2.4 m (고정 지붕 위로 올라탐)
-NRAD = 48
+NRAD = 72
 
 def build_roof():
     shell = O('shell_wall'); rim = oct_ring(1.0, 8 * 12)
@@ -341,7 +346,7 @@ def build_roof():
     # 개폐식 지붕 (사용자 지정 · 개폐 방식은 가정): 조명 고리 안쪽(ρ ≤ 0.54)이 동·서 두 장의 패널로 나뉘어
     # 바깥 고정 지붕 위로 미끄러져 열린다. 고정부 = roof_skin·roof_truss, 이동부 = roof_panel_W·roof_panel_E
     rings = [oct_ring(r, NRAD) for r in RINGS]; T = 4.0          # T: 철골 춤 (위현재 = 지붕면)
-    KP = 3                                                     # 이 고리(ρ = RINGS[KP])부터 안쪽이 이동 패널
+    KP = RINGS.index(0.54)                                     # 이 고리(ρ = RINGS[KP])부터 안쪽이 이동 패널
     def part(k, mid):                                          # (객체 접미사) 고정부면 None
         return None if k < KP else ('W' if mid[0] < RC[0] else 'E')
     def SK(pn): return O('roof_skin') if pn is None else O('roof_panel_' + pn)
@@ -368,8 +373,8 @@ def build_roof():
             tr = TR(part(k, lerp(a, b, .5)) if k > KP else None)        # ρ = 0.54 고리는 열리는 구멍의 테두리라 고정부
             tr.beam(p3(a, zb), p3(b, zb), w, 'truss'); tr.beam(p3(a, zb + deep), p3(b, zb + deep), w, 'truss')
             tr.beam(p3(a, zb), p3(a, zb + deep), w * 0.7, 'truss')
-            if j % 2 == 0: tr.beam(p3(a, zb), p3(b, zb + deep), w * 0.6, 'truss')
-            else: tr.beam(p3(a, zb + deep), p3(b, zb), w * 0.6, 'truss')
+            if j % 2 == 0 or k == 0: tr.beam(p3(a, zb), p3(b, zb + deep), w * 0.6, 'truss')
+            if j % 2 == 1 or k == 0: tr.beam(p3(a, zb + deep), p3(b, zb), w * 0.6, 'truss')      # 가장자리 고리는 X 가새
         if k + 1 < len(RINGS):
             zb2 = roof_z(RINGS[k + 1])
             for j in range(NRAD):
@@ -385,8 +390,13 @@ def build_roof():
         ring = oct_ring(rho, cnt)
         for i, p in enumerate(ring):
             ang = math.atan2(p[1] - RC[1], p[0] - RC[0]) + math.pi / 2; z = roof_z(rho) + zoff
-            lb.box((p[0], p[1], z + 0.35), (9.0, 2.2, 0.5), 'lamp_body', ang)
-            lp.box((p[0], p[1], z + 0.05), (8.4, 1.7, 0.1), 'lamp', ang)
+            co, si = math.cos(ang), math.sin(ang)
+            lb.box((p[0], p[1], z + 0.4), (9.4, 2.4, 0.3), 'lamp_body', ang)            # 틀
+            for a in range(6):                                                            # 작은 LED 모듈 6 × 2
+                for b in range(2):
+                    lx, ly = (a - 2.5) * 1.5, (b - 0.5) * 1.1
+                    c = (p[0] + co * lx - si * ly, p[1] + si * lx + co * ly, z + 0.12)
+                    lb.box((c[0], c[1], z + 0.2), (1.3, 0.95, 0.16), 'lamp_body', ang); lp.box(c, (1.1, 0.75, 0.06), 'lamp', ang)
 
 
 # ───────── 전광판 · 외야 건물 · 호텔 ─────────
@@ -394,9 +404,12 @@ BOARD_Z0, BOARD_Z1 = 28.0, 50.0       # [역산] 메인 전광판 아래·위 �
 BOARD_D = 23.0                        # 펜스에서 뒤로
 BOARD_S = (2.0, G.SF_K1 + 27.0)       # 경로 F 구간 (우중간 → 중견 → 좌익)  [역산]
 
+BOARD_PATH = G.Path([G.PATH_F.p[0]] + G.fillet(G.PATH_F.p[0], G.FENCE[2], G.FENCE[3], 80.0, 14)
+                    + G.fillet(G.FENCE[2], G.FENCE[3], G.FENCE[4], 80.0, 14) + [G.FENCE[4]], step=2.0)   # 꺾임 없는 곡면 [Gemini 검수 → 조감도 확인]
+
 def build_board():
-    F = PATH_F; fr = O('board_frame'); bd = O('board_main')
-    s0, s1 = BOARD_S
+    F = BOARD_PATH; fr = O('board_frame'); bd = O('board_main')
+    s0, s1 = BOARD_S[0], BOARD_S[1] - (G.PATH_F.len - BOARD_PATH.len)
     ribbon(fr, F, s0 - 1.0, s1 + 1.0, BOARD_D + 0.3, BOARD_Z0 - 1.0, BOARD_D + 0.3, BOARD_Z1 + 1.0, 'board_frame', flip=True)
     st = F.stations(s0, s1); L = s1 - s0
     for a, b in zip(st, st[1:]):

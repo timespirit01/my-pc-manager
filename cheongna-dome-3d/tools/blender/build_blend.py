@@ -139,7 +139,7 @@ def add_seats(sc, sections, hide_near=None):
     return o
 
 
-def world_and_cycles(sc, samples=32, gpu=False, exposure=0.0, world=0.05):
+def world_and_cycles(sc, samples=32, gpu=False, exposure=0.15, world=0.08):
     w = bpy.data.worlds.new('World'); w.use_nodes = True; sc.world = w
     w.node_tree.nodes['Background'].inputs['Color'].default_value = (0.5, 0.56, 0.65, 1)
     w.node_tree.nodes['Background'].inputs['Strength'].default_value = world

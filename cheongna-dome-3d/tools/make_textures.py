@@ -17,8 +17,8 @@ X0, Y0, X1, Y1 = M.FIELD_BOX
 W = 4096; K = W / (X1 - X0); H = int(round((Y1 - Y0) * K))
 px = lambda p: ((p[0] - X0) * K, (Y1 - p[1]) * K)             # 위쪽이 중견 (glTF·Blender UV 는 따로 맞춤)
 
-GRASS_A, GRASS_B = (52, 104, 44), (60, 116, 50)
-DIRT, TRACK, LINE = (150, 104, 70), (142, 96, 64), (236, 236, 230)
+GRASS_A, GRASS_B = (74, 128, 46), (88, 144, 54)        # 조감도의 밝은 황록색에 맞춤
+DIRT, TRACK, LINE = (178, 142, 100), (170, 136, 96), (236, 236, 230)      # 조감도의 흙은 밝은 황갈색 (Gemini 의 '짙은 적갈색' 지적은 화소 확인 결과 틀림)
 
 
 def inset(poly, d):
@@ -43,7 +43,8 @@ def field():
     mask = Image.new('L', (W, H), 0); ImageDraw.Draw(mask).polygon([px(p) for p in inset(poly, 4.5)], fill=255)
     yy, xx = np.mgrid[0:H, 0:W]; wx = xx / K + X0; wy = Y1 - yy / K
     a = ((wx + wy) / G.S2 / 5.0).astype(int) + ((wy - wx) / G.S2 / 5.0 + 100).astype(int)
-    t = (a % 2)[..., None].astype(np.float32)
+    t = (a % 2).astype(np.float32)
+    t = np.asarray(Image.fromarray((t * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(5)), np.float32)[..., None] / 255     # 잔디 결 경계를 부드럽게
     grass = np.array(GRASS_A, np.float32) * (1 - t) + np.array(GRASS_B, np.float32) * t
     rng = np.random.default_rng(7); grass += rng.normal(0, 2.2, (H, W, 1)).astype(np.float32)
     base = np.asarray(im, np.float32) + rng.normal(0, 2.5, (H, W, 1)).astype(np.float32)
