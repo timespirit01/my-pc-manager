@@ -4,6 +4,7 @@
 
 렌더 폴더의 pNNN.jpg 를 4K(4096x2048)·2K(2048x1024) WebP 로 바꾸고,
 앱이 읽는 index.json([{id, file, row, num, pos}])을 만든다. 렌더가 없는 지점은 건너뛴다.
+panos.json 의 pos 는 Blender 좌표(build_blend.py export 가 만든 것)이고, index.json 에는 three.js 좌표로 바꿔 적는다.
 """
 import json, os, sys
 from PIL import Image
@@ -24,7 +25,8 @@ for p in json.load(open(listing)):
         im = im.resize((4096, 2048), Image.LANCZOS)
     im.save(os.path.join(out, '4k', f), 'WEBP', quality=75, method=6)
     im.resize((2048, 1024), Image.LANCZOS).save(os.path.join(out, '2k', f), 'WEBP', quality=68, method=6)
-    index.append({'id': p['id'], 'file': f, 'row': p['row'], 'num': p['num'], 'pos': [round(v, 3) for v in p['pos']]})
+    x, y, z = p['pos']                                   # panos.json 은 Blender 좌표 → 앱은 three.js 좌표 (x, z, -y)
+    index.append({'id': p['id'], 'file': f, 'row': p['row'], 'num': p['num'], 'pos': [round(v, 3) for v in (x, z, -y)]})
 
 json.dump(index, open(os.path.join(out, 'index.json'), 'w'), ensure_ascii=False, separators=(',', ':'))
 size = sum(os.path.getsize(os.path.join(r, x)) for r, _, fs in os.walk(out) for x in fs)

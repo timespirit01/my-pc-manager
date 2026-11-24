@@ -1,0 +1,133 @@
+# 청라돔 3D 좌석 시야 시뮬레이터
+
+인천 청라 돔구장(스타필드 청라 멀티스타디움, SSG 랜더스 신구장)의 좌석을 고르면 그 자리에서 보이는 그라운드를 3D로 보여 주는 정적 웹앱입니다.
+
+**이 경기장은 건설 중입니다(2027년 말 준공, 2028년 개장 예정).** 실사 사진이 없어 공개된 조감도와 보도 자료로 모델을 만들었습니다.
+화면은 **설계 자료 기준 예상 시야**이며 실제 시공 결과와 다를 수 있습니다.
+
+## 실행
+
+빌드 과정이 없습니다. 이 폴더를 정적 서버로 열면 됩니다. three.js는 `vendor/`에 들어 있습니다.
+
+```bash
+python3 -m http.server 8000
+```
+
+## 사용법
+
+고척돔 앱과 같습니다.
+
+- 전체 보기에서 구역을 누르면 구역으로, 좌석을 누르면 그 자리 시야로 이동합니다.
+- 상단 "배치도"에서 층을 골라 좌석을 직접 고를 수 있습니다.
+- 시야 화면에서는 드래그로 둘러보고, 옆자리·앞뒤 열 버튼으로 이동합니다.
+- 시야 화면의 주소(`#seat=구역/열/번호`)를 공유하면 같은 자리 시야가 열립니다.
+- "야구 / 콘서트"를 전환할 수 있습니다. 콘서트 무대는 가상 배치입니다.
+
+## 자료 출처
+
+조사일 2026-11-24. 원문 페이지는 이 작업 환경에서 열리지 않아 검색 결과의 요약·발췌문으로 확인했습니다.
+
+| 항목 | 값 | 출처 | 신뢰도 |
+|---|---|---|---|
+| 좌석 수 | 약 23,000석 | [신세계그룹 뉴스룸 2026.03.24](https://www.shinsegaegroupnewsroom.com/shinsegae-group-chairman-jeong-yong-jin-inspects-the-site-of-starfield-cheongna/), [ZDNet 2025.07.08](https://zdnet.co.kr/view/?no=20250708152411) | 공식 (최신) |
+| 좌석 수 (인허가) | 21,000석 | [인천시 2023.06.16](https://www.incheon.go.kr/IC010205/view?repSeq=DOM_0000000007770044&repDt=2023-06-16) | 공식 (이전 수치) |
+| 지붕 | 고정식 돔, 8각 평면, 중앙 사각 철골 | [Thornton Tomasetti](https://www.thorntontomasetti.com/project/cheongna-ssg-baseball-stadium), [머니투데이 2026.05.26](https://www.mt.co.kr/sports/2026/05/26/202605261318770641O) | 설계사·언론 |
+| 지붕 높이 | 약 60m (기준면 불명) | [아시아경제 2026.11.24](https://view.asiae.co.kr/article/2026112415504237932) | 언론 |
+| 메인 전광판 | 100 × 16.5m, 각진 형태 | [포커스인천 2023](http://www.focusincheon.com/news/articleView.html?idxno=3840) | 언론(단독) |
+| 호텔·인피니티풀 위치 | 홈 뒤에서 볼 때 왼쪽 | [뉴스프리존 2026.03.24](https://www.newsfreezone.co.kr/news/articleView.html?idxno=681307) | 언론(보도자료 기반) |
+| 쇼핑몰 연결부 | 홈 뒤에서 볼 때 오른쪽 | 위와 같음 | 언론 |
+| 호텔 | 55실, 3~6층, 필드뷰 35실 | [포커스인천 2023](http://www.focusincheon.com/news/articleView.html?idxno=3840), [뉴스웨이 2024.10.29](https://www.newsway.co.kr/news/view?ud=2024102917195098445) | 언론 |
+| 일정 | 2027.12 준공, 2028년 초 개장 | 신세계그룹 뉴스룸 2026.03.24 | 공식 |
+
+**공개된 자료를 찾지 못한 것**: 펜스 거리·높이, 불펜 위치, 좌석 배치도와 구역 번호, 단면도·평면도, 층별 좌석 수, 요금.
+
+## 조감도 역산
+
+기준 그림은 신세계그룹 뉴스룸 2026.03.24 내부 조감도입니다(`reference/images/interior_2026.png`).
+2023년 DLA+ 조감도는 설계가 달라 보조 참고로만 썼습니다.
+
+1. 조감도에서 홈·1루·2루·3루·마운드의 화소 위치를 읽어 카메라를 역산했습니다.
+   결과는 홈 뒤 43.8m, 높이 29.6m, 가로 화각 115.4°입니다(오차 0.2px). `reference/views.json`에 들어 있습니다.
+2. 검증: 조감도에서 파울라인 끝점을 그라운드에 역투영하면 방위가 135.0°와 45.1°로 나옵니다(이론값 135°, 45°).
+3. 이 카메라로 펜스·관람석 띠·전광판·호텔·외야 건물의 위치와 높이를 쟀습니다.
+
+| 항목 | 역산값 | 모델에 쓴 값 |
+|---|---|---|
+| 좌·우 폴 | 93~95m | 95m (현 랜더스필드와 같다고 가정) |
+| 중견 | 117~124m | 120m (현 랜더스필드와 같다고 가정) |
+| 좌·우중간 꺾임점 | 중견에서 ±24°, 약 110m | 그대로 |
+| 홈~내야 벽 | 더그아웃 앞 13~14m | 16.5m |
+| 2층 앞 붉은 LED 띠 | 파울라인에서 37m, 높이 14m | 그대로 |
+| 3층 앞 검은 띠 전광판 | 파울라인에서 35m, 높이 21.6m | 그대로 |
+| 1루 쪽 3층 | 파울라인 72m 지점에서 꺾여 남북 방향(x = 75.5m)으로 이어짐 | 그대로 (8각 평면과 일치) |
+| 3루 쪽 3층 | 파울라인 43m 지점에서 끝남 | 그대로 |
+| 호텔 입면 | 좌익 폴 바로 뒤, 3루 파울라인과 직각, 폭 약 36m, 높이 9.5~32.5m | 그대로 |
+| 메인 전광판 | 폭 약 98m, 높이 28~50m | 그대로 (폭은 보도 수치 100m와 일치, 높이는 보도의 16.5m보다 큼) |
+| 우익 보조 전광판 | 3층 뒷벽 위, 높이 41~46.6m | 그대로 |
+
+한 장의 그림에서는 거리와 높이를 따로 정할 수 없는 경우가 있습니다.
+그런 값은 카메라가 3층 관중석 안에 있다는 점과 일반적인 관람석 경사로 정했습니다. 오차는 ±3m 안팎으로 봅니다.
+
+## 가정한 것
+
+- 관람석 경사, 열 수, 열 깊이(0.85m), 좌석 폭(0.50~0.56m), 통로 간격
+- 1층 뒤 완만한 테라스석(1층과 2층 사이가 벌어지는 구간). 조감도의 붉은 테라스 자리에 일반 좌석을 넣었습니다.
+- 좌석 색(붉은색·남색), 등급 구분
+- **구역 번호와 열·번호**: 공개된 배치도가 없어 임의로 붙였습니다. 1루 쪽 끝이 작은 번호입니다.
+- 외야 건물의 깊이와 창 배치, 인피니티풀 위치(호텔 옥상), 지붕 철골 배치, 더그아웃·그물 크기
+- 콘서트 무대 배치
+
+모델 좌석 수는 22,399석입니다(공식 약 23,000석).
+
+## 구조
+
+```
+tools/blender/cheongna_geom.py   제원·경로·층·구역·좌석 (순수 파이썬, 형상의 원천)
+tools/blender/cheongna_mesh.py   메시 생성 (객체마다 이름과 그룹)
+tools/blender/build_blend.py     Blender 장면 조립, 내보내기, 렌더, 시야 검사
+tools/make_textures.py           그라운드·전광판 텍스처
+tools/pano_pack.py               360° 렌더를 웹용 WebP로 변환
+tools/ai/gemini_review.py        조감도와 렌더 비교 검수 (유료 API)
+tools/shot.cjs                   웹앱 화면 캡처 (Playwright)
+model/cheongna_dome.blend        만들어진 Blender 장면 (개별 좌석·카메라 포함)
+assets/                          stadium.glb, seats.bin, sections.json, field.jpg, board.jpg, 좌석·선수 모델
+reference/                       사용자 초안 모델과 조감도 (원본, 수정하지 않음), views.json
+src/stadium.js                   glb와 좌석 데이터를 불러와 장면 구성
+src/main.js, plan.js, pano.js    카메라·UI, 배치도, 360° 뷰어 (고척돔에서 이식)
+```
+
+`assets/seats.bin`은 좌석마다 `[x, y, z, 방향]`을 Float32로 담은 파일이고, `sections.json`에 구역별 열과 좌석 수가 있습니다.
+웹 좌석, 렌더 좌석, 배치도, 360° 렌더 지점이 모두 이 데이터를 씁니다.
+
+좌표는 Blender 기준으로 홈플레이트가 원점, +Y가 중견, +Z가 위입니다. 웹(three.js)에서는 `(x, z, -y)`입니다.
+
+## 다시 만드는 순서
+
+```bash
+pip install bpy==5.3.0 numpy pillow scipy
+python tools/make_textures.py assets                                   # 1. 텍스처
+python tools/blender/build_blend.py check                              # 2. 시야 자동 검사
+python tools/blender/build_blend.py export assets                      # 3. 웹용 glb, 좌석, out/panos.json
+python tools/blender/build_blend.py blend model/cheongna_dome.blend    # 4. Blender 장면 저장
+python tools/blender/build_blend.py views reference/views.json out/views 1676 944 64     # 5. 조감도 시점 렌더
+python tools/blender/build_blend.py pano out/panos.json out/panos 4096 160 gpu           # 6. 360° 렌더 (GPU)
+python tools/pano_pack.py out/panos out/panos.json                     # 7. assets/panos 로 변환
+node tools/shot.cjs out/shot overview,sec:112,seat:112/10/8            # 화면 확인
+```
+
+치수를 바꾸려면 `cheongna_geom.py`와 `cheongna_mesh.py` 위쪽 값을 고친 뒤 1~4를 다시 실행합니다.
+
+## 시야 자동 검사
+
+모든 360° 렌더 지점(구역마다 앞·가운데·뒤 열, 302곳)에서 홈·마운드·1루·2루·3루로 광선을 쏴 구조물에 막히는지 봅니다.
+그물·유리 난간처럼 의도된 투명 물체는 제외합니다.
+
+- 내야 기준점: 막힌 지점 0곳.
+- 외야·폴·전광판(참고): 자기 층 바로 아래 폴이 안 보이는 경우, 호텔 옆 좌석에서 전광판 일부가 가리는 경우가 있습니다. 구조상 생기는 한계라 그대로 두었습니다.
+
+## 한계
+
+- 건설 중인 시설이어서 실제와 다를 수 있습니다. 완공 뒤 사진이나 도면이 나오면 값을 바꿔야 합니다.
+- 조감도는 한 장만 정밀하게 맞췄습니다. 같은 설계의 다른 각도 조감도가 있으면 정확도가 올라갑니다.
+- 출입구(보미토리), 카메라석, 기둥은 모델에 없습니다.
+- 사진급 360° 시야는 아직 렌더하지 않았습니다(GPU 비용 승인 필요).
