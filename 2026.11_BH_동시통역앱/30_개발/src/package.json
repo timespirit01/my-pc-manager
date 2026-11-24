@@ -1,0 +1,15 @@
+{
+  "name": "majoo-interpreter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "마주 통역 — 폰 하나로 마주 보고 대화하는 실시간 통역 웹앱",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "node server.js",
+    "test": "node test/e2e.mjs"
+  },
+  "devDependencies": {
+    "ws": "^8.18.0"
+  }
+}

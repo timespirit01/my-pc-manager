@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#152243">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="마주 통역">
+<title>마주 통역</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<main class="app" id="app" data-mode="auto" data-listening="false" data-conn="idle">
+
+  <!-- 상대 쪽 화면: 마주 앉은 사람이 읽을 수 있게 180° 뒤집는다 -->
+  <section class="pane pane--partner" id="pane-partner" lang="en" aria-label="상대 화면">
+    <div class="log" id="log-partner" tabindex="0">
+      <div class="intro" id="intro-partner">
+        <p class="intro__hello" data-s="hello"></p>
+        <p class="intro__text" data-s="intro"></p>
+        <p class="intro__notice" data-s="notice"></p>
+      </div>
+    </div>
+    <div class="foot">
+      <div class="status" id="status-partner">
+        <span class="status__dot" aria-hidden="true"></span>
+        <span class="status__text"></span>
+      </div>
+      <button class="talk" id="talk-partner" type="button" aria-pressed="false">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-5a3.5 3.5 0 1 0-7 0v5A3.5 3.5 0 0 0 12 15Z"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3" fill="none"/></svg>
+        <span class="talk__label"></span>
+      </button>
+    </div>
+  </section>
+
+  <!-- 가운데 조작 줄: 폰 주인(나)이 쓴다 -->
+  <div class="bar">
+    <button class="chip" id="btn-lang" type="button" aria-haspopup="dialog">
+            <span class="chip__value" id="lang-value">English</span>
+      <svg class="ico ico--sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" fill="none"/></svg>
+    </button>
+    <button class="mic" id="btn-mic" type="button" aria-pressed="false" aria-label="대화 시작">
+      <span class="mic__ring" aria-hidden="true"></span>
+      <svg class="ico ico--mic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-5a3.5 3.5 0 1 0-7 0v5A3.5 3.5 0 0 0 12 15Z"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3" fill="none"/></svg>
+    </button>
+    <button class="icon-btn" id="btn-settings" type="button" aria-haspopup="dialog" aria-label="설정">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" fill="none"/><circle cx="16" cy="7" r="2" fill="none"/><circle cx="8" cy="17" r="2" fill="none"/></svg>
+    </button>
+  </div>
+
+  <!-- 내 쪽 화면 -->
+  <section class="pane pane--me" id="pane-me" lang="ko" aria-label="내 화면">
+    <div class="banner" id="banner" role="alert" hidden>
+      <p class="banner__text" id="banner-text"></p>
+      <button class="banner__btn" id="banner-btn" type="button"></button>
+    </div>
+    <div class="meter" id="meter" hidden>
+      <span id="meter-text"></span>
+    </div>
+    <div class="log" id="log-me" tabindex="0">
+      <div class="intro" id="intro-me">
+        <p class="intro__hello" data-s="hello"></p>
+        <p class="intro__text" data-s="intro"></p>
+        <p class="intro__notice" data-s="notice"></p>
+      </div>
+    </div>
+    <div class="foot">
+      <div class="status" id="status-me">
+        <span class="status__dot" aria-hidden="true"></span>
+        <span class="status__text"></span>
+      </div>
+      <button class="talk" id="talk-me" type="button" aria-pressed="false">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-5a3.5 3.5 0 1 0-7 0v5A3.5 3.5 0 0 0 12 15Z"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3" fill="none"/></svg>
+        <span class="talk__label"></span>
+      </button>
+    </div>
+  </section>
+</main>
+
+<!-- 처음 한 번 보는 안내 -->
+<section class="onboard" id="onboard" hidden aria-labelledby="onboard-title">
+  <div class="onboard__body">
+    <p class="onboard__eyebrow">마주 통역</p>
+    <h1 class="onboard__title" id="onboard-title">폰 하나로,<br>마주 보고 대화하세요</h1>
+
+    <div class="diagram" aria-hidden="true">
+      <div class="diagram__phone">
+        <div class="diagram__half diagram__half--partner"><span>Hello!</span></div>
+        <div class="diagram__mic"></div>
+        <div class="diagram__half diagram__half--me"><span>안녕하세요!</span></div>
+      </div>
+    </div>
+
+    <ol class="steps">
+      <li><b>폰을 두 사람 사이에 놓으세요.</b> 화면 위쪽은 상대가, 아래쪽은 내가 봅니다.</li>
+      <li><b>가운데 버튼을 누르세요.</b> 그다음부터는 버튼을 누를 필요가 없습니다.</li>
+      <li><b>각자 자기 말로 편하게 이야기하세요.</b> 음성과 자막으로 바로 통역됩니다.</li>
+    </ol>
+
+    <fieldset class="langpick">
+      <legend>상대는 어떤 언어를 쓰나요?</legend>
+      <div class="langgrid" id="onboard-langs" role="radiogroup"></div>
+    </fieldset>
+  </div>
+  <div class="onboard__foot">
+    <button class="primary" id="onboard-start" type="button">마이크 켜고 시작하기</button>
+    <p class="fine">음성은 통역을 위해 Google AI 서비스로 전송되며, 이 앱에는 저장되지 않습니다.</p>
+  </div>
+</section>
+
+<!-- 상대 언어 고르기 -->
+<dialog class="sheet" id="sheet-lang" aria-labelledby="sheet-lang-title">
+  <form method="dialog" class="sheet__head">
+    <h2 id="sheet-lang-title">상대 언어</h2>
+    <button class="icon-btn" type="submit" aria-label="닫기">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none"/></svg>
+    </button>
+  </form>
+  <div class="langgrid" id="sheet-langs" role="radiogroup"></div>
+</dialog>
+
+<!-- 설정 -->
+<dialog class="sheet" id="sheet-settings" aria-labelledby="sheet-settings-title">
+  <form method="dialog" class="sheet__head">
+    <h2 id="sheet-settings-title">설정</h2>
+    <button class="icon-btn" type="submit" aria-label="닫기">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none"/></svg>
+    </button>
+  </form>
+
+  <div class="field">
+    <p class="field__label" id="lbl-mode">대화 방식</p>
+    <div class="seg" role="radiogroup" aria-labelledby="lbl-mode" id="seg-mode">
+      <button type="button" role="radio" data-value="auto">자동</button>
+      <button type="button" role="radio" data-value="button">눌러서 말하기</button>
+    </div>
+    <p class="field__help" id="help-mode"></p>
+  </div>
+
+  <div class="field">
+    <p class="field__label" id="lbl-size">글자 크기</p>
+    <div class="seg" role="radiogroup" aria-labelledby="lbl-size" id="seg-size">
+      <button type="button" role="radio" data-value="1">기본</button>
+      <button type="button" role="radio" data-value="1.2">크게</button>
+      <button type="button" role="radio" data-value="1.45">아주 크게</button>
+    </div>
+  </div>
+
+  <div class="field field--row">
+    <label for="chk-meter">
+      <span class="field__label">응답 속도 표시</span>
+      <span class="field__help">말이 끝난 뒤 통역 음성이 나오기까지 걸린 시간을 보여 줍니다.</span>
+    </label>
+    <input class="switch" type="checkbox" id="chk-meter" role="switch">
+  </div>
+
+  <div class="field field--actions">
+    <button class="ghost" type="button" id="btn-clear">대화 내용 지우기</button>
+    <button class="ghost" type="button" id="btn-passcode">접속 암호 바꾸기</button>
+    <button class="ghost" type="button" id="btn-guide">사용법 다시 보기</button>
+  </div>
+</dialog>
+
+<!-- 접속 암호 -->
+<dialog class="sheet sheet--center" id="dlg-passcode" aria-labelledby="dlg-passcode-title">
+  <form id="form-passcode" class="passform">
+    <h2 id="dlg-passcode-title">접속 암호</h2>
+    <p class="field__help" id="passcode-help">이 앱을 쓰려면 암호가 필요합니다.</p>
+    <input class="input" id="passcode" type="password" autocomplete="current-password" aria-labelledby="dlg-passcode-title" aria-describedby="passcode-help" required>
+    <button class="primary" type="submit">확인</button>
+  </form>
+</dialog>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
