@@ -30,14 +30,14 @@ export const GRADES = {
 
 // 각도 φ: 기준 중심에서 본 방위. 0°=중견, 90°=1루측, 180°=포수 뒤, 270°=3루측 (평면도 시계방향)
 const IN_A = 78, IN_B = 282;      // 내야 스탠드 범위 (폴 부근 연결통로 제외)
-const OF_A = -70, OF_B = 70;      // 외야 스탠드 범위
+const OF_A = -58, OF_B = 58;      // 외야 스탠드 범위 (가상투어 좌석배치도: 폴 부근 외야엔 좌석 없음, 끝에 쌍둥이 전광판)
 
 // d0: 그라운드 경계에서 바깥쪽 거리, y0: 첫 열 바닥 높이, rows/depth/rise: 열 수/열 깊이/단 높이
 export const TIERS = [
   { id: 'IN1', floor: 1, zone: '내야', d0: 0, y0: 1.0, rows: 10, depth: 0.85, rise: 0.36, a: IN_A, b: IN_B, ground: true, parapet: 0.15 },
   { id: 'IN2', floor: 2, zone: '내야', d0: 10.5, y0: 5.0, rows: 6, depth: 0.85, rise: 0.45, a: IN_A, b: IN_B, ground: true, parapet: 0 },
   { id: 'IN3', floor: 3, zone: '내야', d0: 14.2, y0: 12.2, rows: 5, depth: 0.8, rise: 0.55, a: IN_A, b: IN_B, parapet: 0.7 },
-  { id: 'IN4', floor: 4, zone: '내야', d0: 20, y0: 17.2, rows: 12, depth: 0.8, rise: 0.62, a: IN_A, b: IN_B, parapet: 0.7 },
+  { id: 'IN4', floor: 4, zone: '내야', d0: 20, y0: 17.2, rows: 12, depth: 0.8, rise: 0.62, a: IN_A, b: IN_B, parapet: 0.7 },   // 내야 상층 1루측 가상투어 지점 역산과 일치 (경계에서 21.8m·눈높이 19.3m → 4층 둘째 줄)
   { id: 'OF1', floor: 1, zone: '외야', d0: 0.3, y0: 4.2, rows: 6, depth: 0.8, rise: 0.4, a: OF_A, b: OF_B, ground: true, parapet: 0 },
   { id: 'OF2', floor: 2, zone: '외야', d0: 7.0, y0: 7.2, rows: 3, depth: 0.8, rise: 0.5, a: OF_A, b: OF_B, ground: true, parapet: 0.6 },
   { id: 'OF3', floor: 3, zone: '외야', d0: 8.6, y0: 12.6, rows: 4, depth: 0.8, rise: 0.55, a: -30, b: 30, parapet: 0.7 },   // 상단 외야는 쌍둥이 전광판 사이 중앙부만 (가상투어 확인)

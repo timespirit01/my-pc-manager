@@ -304,7 +304,7 @@ def build_truss(sc):
                 tube(bm, a, b, r, 5)
 
     bm = bmesh.new()
-    for z in range(-112, 14, 7):                     # 아치: x 방향으로 가로지름
+    for z in range(-114, 16, 4):                     # 아치: x 방향으로 가로지름 (가상투어: 약 4m 간격으로 촘촘)
         polyline([surf(x, z) for x in range(-90, 91, 3)], 0.16)
     for x in (-24, 0, 24):                           # 긴 축 방향 보
         polyline([surf(x, z) for z in range(-130, 31, 3)], 0.12)
