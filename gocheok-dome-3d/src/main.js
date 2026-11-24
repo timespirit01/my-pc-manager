@@ -11,6 +11,7 @@ import { buildStadium, R0, P } from './stadium.js';
 import { createPlan } from './plan.js';
 import { loadAssets } from './assets.js';
 import { loadBake, applyBake, applyGloss } from './bake.js';
+import { createPano } from './pano.js';
 
 const $ = (q) => document.querySelector(q);
 const canvas = $('#scene');
@@ -78,7 +79,8 @@ let lightMean = 1;
 if (baked) { grade.uniforms.look.value = 1; lightMean = bake.seatLight.reduce((a, b) => a + b, 0) / bake.seatLight.length; }
 
 // ── 상태 ─────────────────────────────────────────────
-const state = { event: 'baseball', auto: false, crowd: false, mode: 'overview', section: null, seat: null, seatIdx: -1, hover: null, hoverSeat: -1, filter: null, weekend: false };
+let pano = null;                        // 사진급 360° 좌석 시야 (assets/panos)
+const state = { event: 'baseball', photo: true, auto: false, crowd: false, mode: 'overview', section: null, seat: null, seatIdx: -1, hover: null, hoverSeat: -1, filter: null, weekend: false };
 const tmpL = new THREE.Color();
 const WHITE = new THREE.Color(0xffffff), YELLOW = new THREE.Color(0xffd400), GRAY = new THREE.Color(0x4a4d55), tmpC = new THREE.Color();
 
@@ -185,8 +187,9 @@ function goSeat(s, idx, lookKey = defLook()) {
   hideOwnPerson(s, state.seat);
   const eye = seatEye(state.seat), look = LOOKS[lookKey];
   const dir = look.clone().sub(eye).normalize();
-  pov.yaw = Math.atan2(-dir.x, -dir.z); pov.pitch = Math.asin(dir.y); pov.fov = 62;
-  flyTo(eye, look, pov.fov, 1700);
+  pov.yaw = Math.atan2(-dir.x, -dir.z); pov.pitch = Math.asin(dir.y); pov.fov = innerHeight > innerWidth * 1.2 ? 78 : 62;   // 세로 화면은 좌우가 좁아 넓게
+  const p = photoFor(); if (!p || p !== pano.current) pano?.hide(); pano?.preload(p);   // 같은 사진이면 그대로 두고, 다른 구역이면 3D 로 날아간 뒤 바꿔 끼움
+  flyTo(eye, look, pov.fov, p && p === pano.current ? 500 : 1700, updatePano);
   setHash(`#seat=${encodeURIComponent(s.id)}/${state.seat.row}/${state.seat.num}`);
   syncUI();
 }
@@ -199,6 +202,27 @@ function lookAtKey(k) {
 function applyPov() {
   camera.rotation.set(pov.pitch, pov.yaw, 0, 'YXZ');
   camera.fov = pov.fov; camera.updateProjectionMatrix();
+}
+// 사진급 360°: 야구 모드의 좌석 시야에서, 고른 좌석과 가장 가까운 렌더 지점의 파노라마를 덮어 보여 준다
+function photoFor() {
+  if (!pano || !state.photo || state.mode !== 'seat' || state.event === 'concert' || !state.seat) return null;
+  return pano.nearest(state.section.id, seatEye(state.seat));
+}
+function updatePano() {
+  const p = photoFor();
+  if (!p) { pano?.hide(); syncPhoto(); return; }
+  pano.show(p).then(() => syncPhoto());
+}
+function syncPhoto() {
+  const p = photoFor(), b = $('#photoBadge'), btn = $('#btnPhoto');
+  btn.hidden = !pano || !pano.count || state.event === 'concert';
+  btn.textContent = state.photo ? '3D 모델로 보기' : '사진급 360° 보기'; btn.setAttribute('aria-pressed', state.photo);
+  $('#btnCrowd').disabled = !!p;
+  b.hidden = btn.hidden || state.mode !== 'seat';
+  if (p) {
+    const same = state.seat.row === p.row && state.seat.num === p.num;
+    b.textContent = (same ? '사진급 렌더' : `사진급 렌더 · ${p.row}열 ${p.num}번 시점`) + ' — 눌러서 3D 모델로';
+  } else b.textContent = '3D 모델 — 눌러서 사진급 360°로';
 }
 
 // ── 입력 ─────────────────────────────────────────────
@@ -365,6 +389,8 @@ function updateLOD() {
 function syncUI() {
   updateLOD();
   document.body.dataset.mode = state.mode; $('#tip').hidden = true;
+  if (state.mode !== 'seat') pano?.hide();
+  syncPhoto();
   setOffset();
   st.crowd.visible = state.mode === 'seat' && state.crowd; st.net.visible = state.mode === 'seat' && state.event !== 'concert'; rowLabels.visible = state.mode === 'section';
   if ((state.mode === 'seat') !== syncUI.wasSeat) { syncUI.wasSeat = state.mode === 'seat'; sections.forEach(paint); }   // 시야 화면에서는 실제 좌석 색
@@ -437,6 +463,7 @@ $('#selNum').onchange = () => { if (state.mode === 'seat') viewPicked(); };
 $('#btnBack').onclick = () => (state.mode === 'seat' ? goSection(state.section) : goOverview());
 $('#btnAll').onclick = goOverview;
 $('#btnCrowd').onclick = () => { state.crowd = !state.crowd; $('#btnCrowd').textContent = state.crowd ? '관중 숨기기' : '관중 보이기'; $('#btnCrowd').setAttribute('aria-pressed', state.crowd); syncUI(); };
+$('#btnPhoto').onclick = $('#photoBadge').onclick = () => { state.photo = !state.photo; updatePano(); };
 document.querySelectorAll('[data-look]').forEach((b) => (b.onclick = () => lookAtKey(b.dataset.look)));
 $('#dayToggle').onclick = () => { state.weekend = !state.weekend; $('#dayToggle').textContent = state.weekend ? '주말 요금' : '평일 요금'; $('#dayToggle').setAttribute('aria-pressed', state.weekend); buildLegend(); syncUI(); };
 $('#btnShare').onclick = async () => {
@@ -458,7 +485,7 @@ function setEvent(ev) {
   renderer.shadowMap.needsUpdate = true; sections.forEach((s) => (s.thumb = null));
   document.body.dataset.event = ev;
   document.querySelectorAll('#eventSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.ev === ev));
-  syncUI(); if (state.mode === 'seat') lookAtKey(defLook());
+  syncUI(); if (state.mode === 'seat') { lookAtKey(defLook()); updatePano(); }
 }
 document.querySelectorAll('#eventSeg button').forEach((b) => (b.onclick = () => setEvent(b.dataset.ev)));
 
@@ -517,7 +544,9 @@ renderer.shadowMap.needsUpdate = true;
 st.root.traverse((o) => { if (o.userData.centerPost) o.visible = false; });   // 포수 뒤 정중앙 그물 기둥: 실제 사진에 없고 시야를 가림
 if (baked) { const sv = [st.shell.visible, st.labels.visible, st.crowd.visible, st.lampI.visible]; st.shell.visible = true; st.labels.visible = st.crowd.visible = false; st.lampI.visible = false;   /* 조명등이 바닥에 줄로 비치지 않게 반사 장면에서 뺌 */ applyGloss(renderer, scene, baked, undefined, isMobile ? 128 : 256); [st.shell.visible, st.labels.visible, st.crowd.visible, st.lampI.visible] = sv; }
 $('#loading').remove();
-window.__app = { baked, assets, setEvent, plan, state, sections, goSection, goSeat, goOverview, goNeighbor, neighbor, thumb, st, camera };
+pano = await createPano(renderer).catch(() => null);
+if (state.mode === 'seat') updatePano(); else syncPhoto();
+window.__app = { pano, baked, assets, setEvent, plan, state, sections, goSection, goSeat, goOverview, goNeighbor, neighbor, thumb, st, camera };
 
 renderer.setAnimationLoop((now) => {
   stepTween(now);
@@ -526,5 +555,6 @@ renderer.setAnimationLoop((now) => {
   lastT = now;
   grade.uniforms.time.value = (now % 1000) / 1000; grade.uniforms.amt.value = state.mode === 'seat' ? 1 : 0.35;
   st.ledTex.offset.x = (now * 0.000012) % 1;
-  composer.render();
+  if (pano && pano.opaque && state.mode === 'seat' && !tween) pano.render(camera, now);   // 사진이 화면을 다 덮으면 3D 는 그리지 않음 (모바일 부담 ↓)
+  else { composer.render(); pano?.render(camera, now); }
 });

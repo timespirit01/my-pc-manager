@@ -40,9 +40,14 @@ const fs = require('fs'), path = require('path');
     for (const k in aisles) aisles[k] = [...aisles[k]].sort((a, b) => a - b);
     const names = L.vertex.map((m) => m.name || '');
     // 구역별 대표 좌석(가운데 열·가운데 자리) 시점 — 360° 파노라마 렌더 목록
-    const panos = sections.map((s, i) => {
-      const rows = [...new Set(s.seats.map((q) => q.row))], r = rows[Math.floor(rows.length / 2)], row = s.seats.filter((q) => q.row === r), q = row[Math.floor(row.length / 2)];
-      return { name: 'p' + String(i).padStart(3, '0'), id: s.id, row: q.row, num: q.num, pos: [+q.x.toFixed(3), +(q.y + 1.14).toFixed(3), +q.z.toFixed(3)] };
+    // 구역마다 가운데 열 가운데 좌석(pNNN), 6열 이상이면 맨 앞 열(pNNNf)·맨 뒤 열(pNNNb)도
+    const panos = sections.flatMap((s, i) => {
+      const rows = [...new Set(s.seats.map((q) => q.row))].sort((x, y) => x - y);
+      const at = (r, suf) => { const row = s.seats.filter((q) => q.row === r), q = row[Math.floor(row.length / 2)];
+        return { name: 'p' + String(i).padStart(3, '0') + suf, id: s.id, row: q.row, num: q.num, pos: [+q.x.toFixed(3), +(q.y + 1.14).toFixed(3), +q.z.toFixed(3)] }; };
+      const out = [at(rows[Math.floor(rows.length / 2)], '')];
+      if (rows.length >= 6) out.push(at(rows[0], 'f'), at(rows.at(-1), 'b'));
+      return out;
     });
     return { glb: btoa(bin), json: { panos, seats, palette: pal, lamps, names, anchors: { r0, dout, centerZ: SPEC.centerZ, roofHeight: SPEC.roofHeight, ywall: 33, tiers, aisles, net: { a: 112, b: 248, d: 0.12, y0: 1.0, y1: 11 } }, counts: { vertex: L.vertex.length, emit: L.emit.length } } };
   });

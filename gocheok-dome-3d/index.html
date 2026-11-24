@@ -76,6 +76,8 @@ body[data-mode=section] #cThumbBox { display:block; }
 #tipImg[hidden] { display:none; }
 #hint { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); font-size:12px; color:var(--sub); background:var(--panel); border:1px solid var(--line); padding:7px 14px; border-radius:999px; z-index:3; pointer-events:none; white-space:nowrap; }
 #tip { position:fixed; z-index:9; pointer-events:none; background:#000d; border:1px solid var(--line); padding:5px 9px; border-radius:8px; font-size:12px; }
+#photoBadge { position:fixed; left:50%; bottom:52px; transform:translateX(-50%); z-index:4; cursor:pointer; font:inherit; font-size:12px; color:#fff; background:rgba(0,0,0,.55); border:1px solid var(--line); padding:4px 10px; border-radius:999px; white-space:nowrap; max-width:92vw; overflow:hidden; text-overflow:ellipsis; }
+#photoBadge[hidden], #btnPhoto[hidden] { display:none !important; }
 #loading { position:fixed; inset:0; display:grid; place-items:center; background:var(--bg); z-index:20; font-size:14px; color:var(--sub); }
 #panelToggle { display:none; }
 body:not([data-mode=overview]) #btnBack { display:inline-block; }
@@ -93,6 +95,8 @@ body:not([data-mode=overview]) #panelToggle { display:inline-block; }
   #panel h2 button { min-height:36px; }
   #card { left:10px; right:10px; bottom:10px; width:auto; padding:12px; }
   #hint { bottom:auto; top:58px; font-size:11px; max-width:92vw; overflow:hidden; text-overflow:ellipsis; }
+  #photoBadge { bottom:152px; min-height:34px; }
+  #card.open ~ #photoBadge { display:none; }
   #cStats { margin:8px 0; }
   body[data-mode=seat] #cStats div { padding:5px 2px; }
   body[data-mode=seat] #cTitle { font-size:17px; margin:6px 0 0; }
@@ -248,11 +252,13 @@ dialog::backdrop { background:rgba(0,0,0,.6); }
     <button class="btn" id="btnAll">전체 보기</button>
     <button class="btn seatOnly" id="btnCrowd" aria-pressed="false">관중 보이기</button>
     <button class="btn seatOnly" id="btnShare">시야 링크 공유</button>
+    <button class="btn seatOnly" id="btnPhoto" aria-pressed="true" hidden>3D 모델로 보기</button>
   </div>
   <p id="disc" class="seatOnly">*실제 시야는 좌석 배치·시설물·행사 무대에 따라 차이가 있을 수 있습니다.</p>
 </section>
 
 <div id="hint"></div>
+<button id="photoBadge" hidden></button>
 <div id="tip" aria-hidden="true" hidden><img id="tipImg" alt=""><span id="tipTxt"></span></div>
 <script type="module" src="./src/main.js"></script>
 </body>

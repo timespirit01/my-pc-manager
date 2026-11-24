@@ -114,6 +114,11 @@ def add_seats(J, geo):
     src.data.materials.clear(); src.data.materials.append(m)
     src.hide_render = True; src.hide_viewport = False
     S = np.array(J['seats']); pal = [BL.hex2lin(h) for h in J['palette']]
+    if MODE == 'pano':                                                          # 카메라가 앉은 의자는 빼서 발밑이 가려지지 않게
+        cams = np.array([v['pos'] for v in json.load(open(LIST))])
+        d = np.hypot(S[:, None, 0] - cams[None, :, 0], S[:, None, 2] - cams[None, :, 2])
+        near = (d < 0.4) & (np.abs(S[:, None, 1] - cams[None, :, 1]) < 1.6)
+        S = S[~near.any(1)]; print('seats hidden under cameras', int(near.any(1).sum()))
     pts = [tb(x, y, z) for x, y, z, _, _ in S]
     me = bpy.data.meshes.new('seatpts'); me.from_pydata([tuple(p) for p in pts], [], [])
     rot = me.attributes.new('rot', 'FLOAT_VECTOR', 'POINT')
