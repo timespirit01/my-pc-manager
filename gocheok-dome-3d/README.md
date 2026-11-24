@@ -87,6 +87,23 @@ python tools/blender/preview.py assets /tmp/pv                     # (선택) Cy
 
 전광판·띠 LED는 가상투어처럼 꺼진 상태로, 펜스는 광고 없는 패드로 그렸습니다.
 
+## 사진급 360° 좌석 시야
+
+야구 모드의 좌석 시야는 Blender Cycles로 미리 그린 360° 파노라마를 3D 화면 위에 덮어 보여 줍니다
+(드래그·확대는 3D 카메라를 그대로 따르고, "3D 모델로" 버튼으로 실시간 3D와 전환).
+구역마다 가운데 열 한 곳, 6열 이상인 구역은 맨 앞·맨 뒤 열을 더해 고른 좌석과 가장 가까운 지점의 사진을 씁니다.
+
+렌더 전용 디테일(`tools/blender/render_pano.py`): 개별 좌석, 유리·철제 난간, 계단 디딤판, 그물, 흰 격자 둘레 벽,
+촘촘한 입체 지붕 트러스, 조명 기구, 펜스 노란 띠. 색·밝기는 가상투어 세 지점과 같은 시점으로 렌더해
+Gemini 비교 검수(`tools/ai/gemini_review.py`)로 맞췄습니다.
+
+```bash
+node tools/export_bake.cjs http://localhost:8765/ out/bake          # 장면 + panos.json (렌더 지점)
+python render_pano.py views out/bake assets views.json out/v 800 500 32        # 가상투어 비교 (CPU)
+python render_pano.py pano  out/bake assets out/bake/panos.json out/p 4096 160 gpu   # 4096x2048, L40S 장당 약 27초
+python3 tools/pano_pack.py out/p out/bake/panos.json                 # → assets/panos/{4k,2k}/*.webp + index.json
+```
+
 ## 데이터 근거와 한계
 
 실시설 설계 도면(CAD)은 공개되어 있지 않아, 공개 제원에 맞춰 형상을 만들고 나머지는 추정했습니다.
@@ -115,3 +132,4 @@ python tools/blender/preview.py assets /tmp/pv                     # (선택) Cy
 - `src/data.js` — 제원, 층(tier) 단면, 구역·등급·요금
 - `src/stadium.js` — 그라운드·관람석·지붕·좌석 생성
 - `src/main.js` — 카메라 이동, 좌석 선택, UI
+- `src/pano.js` — 사진급 360° 파노라마 표시 (`assets/panos`)
