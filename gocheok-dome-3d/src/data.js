@@ -45,7 +45,7 @@ export const TIERS = [
 ];
 
 // 실제 좌석 색 (공개 가상투어 화면 참고): 내야 하단 버건디, 테이블석 주황 계열, 2층 이상·외야는 밝은 회색
-const REAL = { IN1: '#7d2330', premium: '#b4572a', IN2: '#c3c9d1', upper: '#b7bfca' };
+const REAL = { IN1: '#5e2429', premium: '#9a4e2b', IN2: '#9ea6ae', upper: '#a3abb3' };   // Gemini 검수: 1층 채도 낮은 적갈색, 상층·외야 회색
 
 function range(tier, first, count, a, b, gradeOf, extra = {}) {
   const out = [];

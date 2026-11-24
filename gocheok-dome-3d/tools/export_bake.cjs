@@ -12,7 +12,8 @@ const fs = require('fs'), path = require('path');
   const r = await p.evaluate(async () => {
     const THREE = await import('three');
     const { GLTFExporter } = await import('./tools/vendor/GLTFExporter.js');
-    const { collectBake } = await import('./src/stadium.js');
+    const { collectBake, R0, Dout } = await import('./src/stadium.js');
+    const { TIERS, SPEC } = await import('./src/data.js');
     const { st, sections } = window.__app;
     st.root.updateMatrixWorld(true);
     const L = collectBake(st), sc = new THREE.Scene();
@@ -32,11 +33,23 @@ const fs = require('fs'), path = require('path');
     for (const s of sections) { let ci = pal.indexOf(s.real); if (ci < 0) { ci = pal.length; pal.push(s.real); } for (const q of s.seats) seats.push([+q.x.toFixed(3), +q.y.toFixed(3), +q.z.toFixed(3), +q.phi.toFixed(3), ci]); }
     const lamps = [], M = new THREE.Matrix4(), P = new THREE.Vector3(), Z = new THREE.Vector3();
     for (let i = 0; i < st.lampI.count; i++) { st.lampI.getMatrixAt(i, M); P.setFromMatrixPosition(M); Z.setFromMatrixColumn(M, 2).normalize(); lamps.push([P.x, P.y, P.z, Z.x, Z.y, Z.z].map((v) => +v.toFixed(3))); }
-    return { glb: btoa(bin), json: { seats, palette: pal, lamps, counts: { vertex: L.vertex.length, emit: L.emit.length } } };
+    // 렌더 전용 세부 요소(난간·계단·그물·둘레 철골)를 Blender 에서 만들 기준 형상
+    const r0 = [], dout = []; for (let i = 0; i < 720; i++) { r0.push(+R0(i / 2).toFixed(4)); dout.push(+Dout(i / 2).toFixed(4)); }
+    const tiers = TIERS.map((t) => ({ ...t, ...(({ r0, dEnd, yEnd }) => ({ r0, dEnd, yEnd }))(st.tierInfo[t.id]) }));
+    const aisles = {}; for (const s of sections) (aisles[s.tier] ||= new Set()).add(+s.a.toFixed(3)), aisles[s.tier].add(+s.b.toFixed(3));
+    for (const k in aisles) aisles[k] = [...aisles[k]].sort((a, b) => a - b);
+    const names = L.vertex.map((m) => m.name || '');
+    // 구역별 대표 좌석(가운데 열·가운데 자리) 시점 — 360° 파노라마 렌더 목록
+    const panos = sections.map((s, i) => {
+      const rows = [...new Set(s.seats.map((q) => q.row))], r = rows[Math.floor(rows.length / 2)], row = s.seats.filter((q) => q.row === r), q = row[Math.floor(row.length / 2)];
+      return { name: 'p' + String(i).padStart(3, '0'), id: s.id, row: q.row, num: q.num, pos: [+q.x.toFixed(3), +(q.y + 1.14).toFixed(3), +q.z.toFixed(3)] };
+    });
+    return { glb: btoa(bin), json: { panos, seats, palette: pal, lamps, names, anchors: { r0, dout, centerZ: SPEC.centerZ, roofHeight: SPEC.roofHeight, ywall: 33, tiers, aisles, net: { a: 112, b: 248, d: 0.12, y0: 1.0, y1: 11 } }, counts: { vertex: L.vertex.length, emit: L.emit.length } } };
   });
   fs.mkdirSync(out, { recursive: true });
   fs.writeFileSync(path.join(out, 'bake_scene.glb'), Buffer.from(r.glb, 'base64'));
   fs.writeFileSync(path.join(out, 'bake.json'), JSON.stringify(r.json));
+  fs.writeFileSync(path.join(out, 'panos.json'), JSON.stringify(r.json.panos));
   console.log('counts', r.json.counts, 'seats', r.json.seats.length, 'lamps', r.json.lamps.length, 'palette', r.json.palette, 'glb', fs.statSync(path.join(out, 'bake_scene.glb')).size);
   await b.close();
 })();

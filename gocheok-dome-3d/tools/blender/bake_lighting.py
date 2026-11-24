@@ -15,8 +15,8 @@ import bpy, bmesh, json, math, os, sys, time
 import numpy as np
 from mathutils import Vector
 
-MODE = next(a for a in sys.argv if a in ('preview', 'bake', 'seatlight'))
-args = sys.argv[sys.argv.index(MODE) + 1:]
+MODE = next((a for a in sys.argv if a in ('preview', 'bake', 'seatlight')), None)   # None: 다른 스크립트가 build() 만 가져다 씀
+args = sys.argv[sys.argv.index(MODE) + 1:] if MODE else [None, None, None]
 SRC, ASSETS, OUT = args[0], args[1], args[2]
 REST = args[3:]
 LAMP_W, MEMBRANE, BOARD = 2200, 1.6, 1.2          # 지붕 조명등 1개 출력(W), 막 발광 세기, 전광판 발광 세기
@@ -69,7 +69,9 @@ def to_emission(ob, strength):
         nt.links.new(em.outputs[0], out.inputs['Surface'])
 
 
-def build():
+def build(src=None, assets=None, seats=True, concrete='#c9c5ba'):
+    global SRC, ASSETS
+    SRC, ASSETS = src or SRC, assets or ASSETS
     bpy.ops.wm.read_factory_settings(use_empty=True)
     sc = bpy.context.scene
     J = json.load(open(os.path.join(SRC, 'bake.json')))
@@ -95,9 +97,11 @@ def build():
         o.data.transform(o.matrix_world); o.matrix_world.identity()
         for slot in o.material_slots:
             n = slot.material.name
-            slot.material = principled(n, hex2lin('#c9c5ba') if 'Concrete' in n else hex2lin('#24272c'))
+            slot.material = principled(n, hex2lin(concrete) if 'Concrete' in n else hex2lin('#24272c'))
     stands = st[0] if len(st) == 1 else None
-    # 좌석: 저폴리를 색별로 합쳐서 배치
+    # 좌석: 저폴리를 색별로 합쳐서 배치 (seats=False 면 호출한 쪽이 따로 만든다)
+    if not seats:
+        return finish(sc), J, objs, st, []
     seat = imp(os.path.join(ASSETS, 'seat_lo.glb'))[0]
     seat.data.transform(seat.matrix_world)
     v0 = np.array([v.co[:] for v in seat.data.vertices])
@@ -122,6 +126,10 @@ def build():
         me.materials.append(principled('seat%d' % ci, hex2lin(hexc), 0.45))
         ob = bpy.data.objects.new('seats%d' % ci, me); sc.collection.objects.link(ob)
         seat_objs.append(ob)
+    return finish(sc), J, objs, st, seat_objs
+
+
+def lamps(sc, J):
     # 지붕 조명등: 넓은 면광원, 그라운드 쪽을 향함
     for i, (x, y, z, dx, dy, dz) in enumerate(J['lamps']):
         L = bpy.data.lights.new('lamp%d' % i, 'AREA')
@@ -130,6 +138,13 @@ def build():
         ob.location = tb(x, y, z)
         d = Vector((dx, -dz, dy))
         ob.rotation_euler = (-d).to_track_quat('Z', 'Y').to_euler()     # 면광원은 -Z 로 빛을 낸다
+        ob.visible_camera = False                                          # 카메라엔 안 보이게 (조명기구 형상은 따로)
+
+
+def finish(sc):
+    J = json.load(open(os.path.join(SRC, 'bake.json')))
+    if not any(o.type == 'LIGHT' for o in sc.objects):
+        lamps(sc, J)
     w = bpy.data.worlds.new('w'); sc.world = w; w.use_nodes = True
     w.node_tree.nodes['Background'].inputs[0].default_value = (0.5, 0.55, 0.65, 1)
     w.node_tree.nodes['Background'].inputs[1].default_value = 0.05
@@ -140,7 +155,7 @@ def build():
     except TypeError:
         pass
     sc.cycles.max_bounces = 6; sc.cycles.diffuse_bounces = 3; sc.cycles.glossy_bounces = 1
-    return sc, J, objs, st, seat_objs
+    return sc
 
 
 def preview(seat_idx):
@@ -164,7 +179,7 @@ def preview(seat_idx):
     t0 = time.time(); bpy.ops.render.render(write_still=True); print('render sec', round(time.time() - t0, 1))
 
 
-if MODE == 'preview':
+if MODE == 'preview' and __name__ == '__main__':
     preview(int(REST[0]) if REST else 3000)
 
 

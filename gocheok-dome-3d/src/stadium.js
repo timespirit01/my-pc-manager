@@ -121,15 +121,11 @@ function fieldTexture(size, polePts) {
     const RED = '#963a36';                                   // 벽 앞 붉은 인조잔디 띠 (가상투어 확인: 파울 지역도 대부분 잔디)
     g.save();
     g.fillStyle = '#3f8436'; g.fillRect(0, 0, size, size);
-    // 잔디 결(교차 줄무늬)
-    g.translate(X(0), Z(0)); g.rotate(Math.PI / 4);
-    for (let i = -40; i < 40; i++) {
-      g.fillStyle = i % 2 ? 'rgba(255,255,255,0.045)' : 'rgba(0,0,0,0.04)'; g.fillRect(i * 5 * s, -220 * s, 5 * s, 440 * s);
-      g.fillStyle = i % 2 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'; g.fillRect(-220 * s, i * 5 * s, 440 * s, 5 * s);
-    }
+    // 잔디 깎기 줄무늬: 홈→중견 방향 세로 줄 (가상투어·Gemini 검수), 폭 4.5m
+    for (let i = -40; i < 40; i++) { g.fillStyle = i % 2 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'; g.fillRect(X(i * 4.5), 0, 4.5 * s, size); }
     g.restore();
     const path = () => { g.beginPath(); for (let i = 0; i <= N; i++) { const p = P((i / N) * 360, 0, 0); i ? g.lineTo(X(p.x), Z(p.z)) : g.moveTo(X(p.x), Z(p.z)); } g.closePath(); };
-    const dirt = '#b9783f';
+    const dirt = '#a65a38';                                   // 붉은빛 도는 흙 (Gemini 검수)
     // 파울 지역 벽 앞 붉은 띠: 폴 부근 0 → 베이스 옆 4m → 홈 옆 5.5m → 홈 뒤 3.2m
     // 벽 앞 붉은 띠: 외야 워닝트랙 5.5m (외야 하층 시점 사진) → 폴 부근 4m → 홈 옆 5.5m → 홈 뒤 3.2m
     const rw = (phi) => { const u = Math.abs(wrap180(phi)); return u < 70 ? 5.5 : u < 82 ? 5.5 - 1.5 * smooth(70, 82, u) : u < 150 ? 4 + 1.5 * smooth(82, 150, u) : 5.5 - 2.3 * smooth(150, 180, u); };
@@ -279,7 +275,7 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false, assets 
   const fenceH = (phi) => 1.0 + (SPEC.fenceHeight - 1.0) * (1 - smooth(71, 77, Math.abs(wrap180(phi))));
   // 가상투어: 펜스에 광고 없음. 외야는 밝은 파란 패드, 내야 쪽 벽은 보랏빛 남색
   const plain = (base, seam) => canvasTex(512, 64, (g, w, h) => { g.fillStyle = base; g.fillRect(0, 0, w, h); g.fillStyle = seam; for (let x = 0; x < w; x += 128) g.fillRect(x, 0, 3, h); noise(g, w, h, 0.06, 4); }, [1, 1]);
-  const ofAds = plain('#1d3f97', 'rgba(0,0,0,0.25)'), inAds = plain('#3a3477', 'rgba(0,0,0,0.25)');
+  const ofAds = plain('#1c3572', 'rgba(0,0,0,0.25)'), inAds = plain('#33306e', 'rgba(0,0,0,0.25)');
   const G = '#16264d', NV = '#14254a';
   const _ofAdsOld = adTexture(G, [['SKY DOME', G, '#fff'], ['SEOUL', '#fff', '#16264d'], ['BASEBALL', G, '#ffd24a'], ['GOCHEOK', '#c8102e', '#fff'], ['PLAY BALL', G, '#fff'], ['DOME', '#0b3d91', '#fff']], 256);
   const _inAdsOld = adTexture(NV, [['GOCHEOK SKY DOME', NV, '#fff'], ['SEOUL', '#fff', '#14254a'], ['PLAY BALL', NV, '#ffd24a'], ['BASEBALL', '#c8102e', '#fff']], 96);
@@ -360,10 +356,11 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false, assets 
   netTex.colorSpace = THREE.SRGBColorSpace;
   b = buf(); sweep(b, 112, 248, [[0.12, 1.0], [0.12, 11]], { step: 1, vScale: 0.06, uScale: 0.06 });
   const net = meshFrom(b, new THREE.MeshBasicMaterial({ map: netTex, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false }), { receive: false });
+  net.name = 'net_web';
   net.renderOrder = 5; root.add(net);
   const postG = new THREE.CylinderGeometry(0.07, 0.07, 10, 8);
-  for (let a = 112; a <= 248; a += 17) { const m = new THREE.Mesh(postG, steel); P(a, 0.12, 6, m.position); m.userData.centerPost = Math.abs(a - 180) < 10; root.add(m); }   // 가운데 기둥은 실제에 없음 (main.js 에서 숨김)
-  b = buf(); sweep(b, 112, 248, [[0.1, 10.95], [0.1, 11.05], [0.16, 11.05]]); root.add(meshFrom(b, steel));
+  for (let a = 112; a <= 248; a += 17) { const m = new THREE.Mesh(postG, steel); m.name = 'net_post'; P(a, 0.12, 6, m.position); m.userData.centerPost = Math.abs(a - 180) < 10; root.add(m); }   // 가운데 기둥은 실제에 없음 (main.js 에서 숨김)
+  b = buf(); sweep(b, 112, 248, [[0.1, 10.95], [0.1, 11.05], [0.16, 11.05]]); const netTop = meshFrom(b, steel); netTop.name = 'net_top'; root.add(netTop);
 
   // 외벽 + 지붕
   // 둘레 벽: 가상투어처럼 흰 격자 철골 (6m 간격 기둥 + 사재)
@@ -378,7 +375,7 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false, assets 
   latTex.repeat.set(1 / 6, 1 / 6);
   const shellMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: latTex, roughness: 0.8, side: THREE.DoubleSide });
   b = buf(); sweep(b, 0, 360, [[(p) => Dout(p), 0], [(p) => Dout(p), (p) => Ywall(p)]], { step: 2 });
-  const wall = meshFrom(b, shellMat); root.add(wall);
+  const wall = meshFrom(b, shellMat); wall.name = 'perimeter_wall'; root.add(wall);
   const TM = 0.64;                                        // 이 안쪽은 반투명 막, 바깥은 철골 트러스 (가상투어 확인)
   const memTex = canvasTex(512, 512, (g, w, h) => {
     g.fillStyle = '#f2d4d6'; g.fillRect(0, 0, w, h);        // 분홍빛 막 (가상투어)
@@ -586,7 +583,7 @@ export function buildStadium(scene, { fieldTexSize = 4096, lite = false, assets 
     const cone = new THREE.CylinderGeometry(0.25, 4.2, 34, 14, 1, true).translate(0, -17, 0);
     [0xff5ca8, 0x6aa8ff, 0xffe27a, 0x9d7bff].forEach((c, k) => { for (const sx of [-1, 1]) { const m = new THREE.Mesh(cone, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.13, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })); m.position.set(sx * (6 + k * 6), 25.5, -90); m.rotation.set(0.35 + k * 0.12, 0, sx * (0.12 + k * 0.1)); m.renderOrder = 6; concert.add(m); } });
   }
-  return { root, sections, labels, roof, wall, shell, net, crowd, players, concert, lampMat, total, people, polePts, ledTex, standC, standD, seatGroup, ground: groundMesh, lampI, seatHi: assets?.seatHi || null, seatLo: assets?.seatLo ? seatGeo : null };
+  return { tierInfo, root, sections, labels, roof, wall, shell, net, crowd, players, concert, lampMat, total, people, polePts, ledTex, standC, standD, seatGroup, ground: groundMesh, lampI, seatHi: assets?.seatHi || null, seatLo: assets?.seatLo ? seatGeo : null };
 }
 
 // ── 조명 굽기 대상 목록 (tools/export_bake.cjs 와 런타임이 같은 순서를 쓴다) ──
