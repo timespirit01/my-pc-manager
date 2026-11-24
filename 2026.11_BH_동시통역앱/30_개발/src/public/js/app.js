@@ -172,7 +172,7 @@ function renderStatus() {
     const [key, text] = sideStatus(side);
     p.status.dataset.state = key;
     p.status.querySelector('.status__text').textContent = text;
-    p.status.style.visibility = text ? 'visible' : 'hidden';
+    p.status.hidden = !text; // 보여 줄 말이 없으면 자리도 차지하지 않는다
     const pressed = s.mode === 'button' && s.activeSide === side;
     p.talk.setAttribute('aria-pressed', String(pressed));
     p.talk.querySelector('.talk__label').textContent = pressed ? strings(side).speakNow : strings(side).tapToSpeak;
@@ -244,6 +244,13 @@ function renderTurn(t) {
     if (t.translated) panes[inSide].live.textContent = t.translated;
     turnEls.delete(t.id);
   }
+}
+
+// 화면 구성이 바뀌면(글자 크기, 대화 방식) 가장 최근 말이 보이게 다시 맞춘다.
+function scrollLogs() {
+  requestAnimationFrame(() => {
+    for (const side of ['me', 'partner']) panes[side].log.scrollTop = panes[side].log.scrollHeight;
+  });
 }
 
 function clearConversation() {
@@ -460,6 +467,7 @@ function renderSettings() {
   $('chk-meter').checked = state.showMeter;
   document.documentElement.style.setProperty('--scale', String(state.scale));
   renderMeter();
+  scrollLogs();
 }
 
 $('btn-settings').addEventListener('click', () => $('sheet-settings').showModal());
