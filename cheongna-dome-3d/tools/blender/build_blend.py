@@ -163,8 +163,8 @@ def world_and_cycles(sc, samples=32, gpu=False, exposure=0.15, world=0.08):
             except Exception as e: print('gpu', kind, e)
     sc.render.image_settings.file_format = 'JPEG'; sc.render.image_settings.quality = 92
     if sc.get('roof_open', 0) > 0.5:                              # 지붕이 열리면 낮 하늘 + 해
-        bg = w.node_tree.nodes['Background']; bg.inputs['Color'].default_value = (0.35, 0.55, 0.95, 1); bg.inputs['Strength'].default_value = 1.6
-        sun = bpy.data.lights.new('sun', 'SUN'); sun.energy = 4.0; sun.angle = math.radians(1.0)
+        bg = w.node_tree.nodes['Background']; bg.inputs['Color'].default_value = (0.35, 0.55, 0.95, 1); bg.inputs['Strength'].default_value = 1.1
+        sun = bpy.data.lights.new('sun', 'SUN'); sun.energy = 3.0; sun.angle = math.radians(1.0)
         so = bpy.data.objects.new('sun', sun); sc.collection.objects.link(so); so.rotation_euler = (math.radians(38), 0, math.radians(200))
 
 

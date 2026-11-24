@@ -198,7 +198,7 @@ function applyPov() {
 }
 // 사진급 360°: 야구 모드의 좌석 시야에서, 고른 좌석과 가장 가까운 렌더 지점의 파노라마를 덮어 보여 준다
 function photoFor() {
-  if (!pano || !state.photo || state.mode !== 'seat' || state.event === 'concert' || state.roof === 'open' || !state.seat) return null;   // 사진은 지붕 닫힌 야구 장면만
+  if (!pano || !state.photo || state.mode !== 'seat' || state.event === 'concert' || !pano.count || !state.seat) return null;   // 사진은 야구 장면만 (지붕 닫힘·열림 각각 한 벌)
   return pano.nearest(state.section.id, seatEye(state.seat));
 }
 function updatePano() {
@@ -208,7 +208,7 @@ function updatePano() {
 }
 function syncPhoto() {
   const p = photoFor(), b = $('#photoBadge'), btn = $('#btnPhoto');
-  btn.hidden = !pano || !pano.count || state.event === 'concert' || state.roof === 'open';
+  btn.hidden = !pano || !pano.count || state.event === 'concert';
   btn.textContent = state.photo ? '3D 모델로 보기' : '사진급 360° 보기'; btn.setAttribute('aria-pressed', state.photo);
   $('#btnCrowd').disabled = !!p;
   b.hidden = btn.hidden || state.mode !== 'seat';
@@ -495,6 +495,7 @@ function applyRoof() {
 function setRoof(v, instant = false) {
   if (state.roof === v && !instant) return; state.roof = v;
   document.querySelectorAll('#roofSeg button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.roof === v));
+  pano?.setVariant(v);
   const to = v === 'open' ? 1 : 0;
   if (instant || reduceMotion) { roofT = to; roofTween = null; applyRoof(); } else roofTween = { t0: performance.now(), from: roofT, to, dur: 2600 };
   sections.forEach((s) => (s.thumb = null));
@@ -561,7 +562,7 @@ shell(false); syncUI();
 $('#seatTotal').textContent = st.total.toLocaleString();
 if (!fromHash()) { camera.position.set(0, 360, 300); flyTo(HOME_VIEW, orbit.target, 50, 1800, () => { orbit.enabled = true; }); }
 $('#loading').remove();
-pano = await createPano(renderer).catch(() => null);
+pano = await createPano(renderer).catch(() => null); pano?.setVariant(state.roof);
 if (state.mode === 'seat') updatePano(); else syncPhoto();
 window.__app = { pano, baked, setEvent, setRoof, plan, state, sections, goSection, goSeat, goOverview, goNeighbor, neighbor, thumb, st, camera };
 
