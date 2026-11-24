@@ -120,6 +120,7 @@ python tools/blender/build_blend.py blend model/cheongna_dome.blend    # 4. Blen
 python tools/blender/build_blend.py views reference/views.json out/views 1676 944 64     # 5. 조감도 시점 렌더 (끝에 roof=open 을 붙이면 지붕 열림)
 python tools/blender/build_blend.py pano out/panos.json out/panos 4096 160 gpu           # 6. 360° 렌더 (GPU)
 python tools/pano_pack.py out/panos out/panos.json                     # 7. assets/panos 로 변환
+# 지붕 열림: 6번 끝에 roof=open 을 붙여 out/panos_open 에 그리고, 7번의 셋째 인자를 assets/panos_open 으로 준다
 node tools/shot.cjs out/shot overview,sec:112,seat:112/10/8            # 화면 확인
 ```
 
@@ -152,7 +153,7 @@ node tools/shot.cjs out/shot overview,sec:112,seat:112/10/8            # 화면 
 - 건설 중인 시설이어서 실제와 다를 수 있습니다. 완공 뒤 사진이나 도면이 나오면 값을 바꿔야 합니다.
 - 조감도는 한 장만 정밀하게 맞췄습니다. 같은 설계의 다른 각도 조감도가 있으면 정확도가 올라갑니다.
 - 출입구(보미토리), 카메라석, 기둥은 모델에 없습니다.
-- 사진급 360°는 지붕이 닫힌 야구 장면만 쓰입니다. 지붕을 열거나 콘서트 모드면 3D 모델로 보여 줍니다.
+- 사진급 360°는 야구 장면에서 지붕 닫힘(`assets/panos`)과 열림(`assets/panos_open`) 두 벌이 있고, 지붕 버튼에 따라 바뀝니다. 콘서트 모드는 3D 모델로 보여 줍니다.
 - 지붕이 열렸을 때의 햇빛 방향·그림자는 실제 시각과 맞춘 것이 아닙니다.
 - 사진급 360° 시야는 렌더 지점 311곳(구역마다 가운데 열, 6열 이상이면 앞·뒤 열, 건물 시점 포함)을 4096×2048, 160샘플로 그렸습니다. 고른 좌석과 가장 가까운 지점의 사진을 씁니다.
-  L40S 1대에서 장당 약 31초, 전체 약 2시간 40분, 215크레딧이 들었습니다(시험·설치·회수 포함).
+  L40S 1대에서 장당 약 31초가 걸렸습니다. 닫힌 상태 215크레딧, 열린 상태 195크레딧이 들었습니다(시험·설치·회수 포함).
