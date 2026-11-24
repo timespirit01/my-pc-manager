@@ -6,7 +6,7 @@ import { collectBake } from './stadium.js';
 
 const BASE = './assets/bake/';
 export const R_ENC = 4;                               // 저장 범위 (bake_lighting.py 와 같아야 함)
-const SEAT_K = 0.8;                                   // 위·앞을 향한 측정판보다 실제 좌석 면이 받는 빛이 적다
+const SEAT_K = 0.62;                                  // 위·앞을 향한 측정판보다 실제 좌석 면이 받는 빛이 적다
 
 export async function loadBake({ lite = false, maxTex = 4096 } = {}) {
   const tl = new THREE.TextureLoader();
