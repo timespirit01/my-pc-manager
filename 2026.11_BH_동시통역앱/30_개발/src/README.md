@@ -36,7 +36,7 @@ GEMINI_API_KEY=발급받은_키 npm run dev     # http://localhost:5173
 3. 환경 변수 `GEMINI_API_KEY`, `APP_PASSCODE`를 넣는다.
 4. 배포된 주소를 휴대폰에서 열고, 홈 화면에 추가하면 앱처럼 실행된다.
 
-배포는 아직 하지 않았다.
+2026-11-25에 `majoo-interpreter` 프로젝트로 배포했다: https://majoo-interpreter-timespirit01.vercel.app (Vercel 로그인 보호가 켜져 있다). 환경 변수를 바꾼 뒤에는 재배포해야 적용된다.
 
 ## 구조
 

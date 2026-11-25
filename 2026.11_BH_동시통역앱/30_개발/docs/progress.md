@@ -8,11 +8,12 @@
   - 통역 엔진 접속(Gemini Live API 통역 모델), 임시 토큰 서버, 접속 암호
   - 자동 재연결(연결 시간 한도, 끊김, 인터넷 차단), 오류 안내
   - 자동 검사 27개 + 15분 연속 대화 검사, 화면 캡처 9장(`screens/`)
-- **진행 중**: 없음
+- **배포 (261125)**: Vercel 프로젝트 `majoo-interpreter` (팀 timespirit's projects, GitHub `timespirit01/my-pc-manager` 연결, Root Directory `2026.11_BH_동시통역앱/30_개발/src`). 브랜치 `claude/youthful-pascal-l9ledt`를 운영 배포. 주소 https://majoo-interpreter-timespirit01.vercel.app — 화면 200, `/api/token` GET 405(함수 동작) 확인. Vercel 로그인 보호가 켜져 있어 처음 열 때 Vercel 로그인 필요
+- **진행 중**: 사용자가 Vercel에 환경 변수 2개 입력 → 재배포
 - **남은 문제**
   - 실제 통역 엔진으로 한 번도 돌려 보지 못함. 키는 정상이지만(261125 확인) 이 개발 환경에서는 엔진에 닿지 않음: 키가 `Authorization` 헤더로만 주입되고, 웹소켓 접속은 프록시에서 404. 상세는 `checks.md`. 완료 기준 1·2(1초)와 통역 품질은 미확인
   - 실제 휴대폰(Android Chrome, iPhone Safari)에서 확인하지 못함
-  - 배포하지 않음
+  - 배포는 했으나(261125) 환경 변수 `GEMINI_API_KEY`·`APP_PASSCODE`가 아직 없어 통역은 동작하지 않음
   - 상대 쪽 화면 문안 10개 언어는 원어민 검수를 받지 않음
 - **결과에 영향을 준 가정**
   - 내 언어는 한국어 고정, 상대 언어 10개 (사용자 확정 아님)
@@ -30,9 +31,8 @@
 
 ## 다음 행동
 
-1. (사용자 확인 후) Vercel 배포. 새 키 발급은 필요 없음 — 기존 "test 프로젝트" 키를 Vercel 환경 변수 `GEMINI_API_KEY`에 넣는다. 무료 등급이면 통역 지연 사례가 있으니 결제 등급 확인
+1. (사용자) Vercel 프로젝트 설정 → Environment Variables에 `GEMINI_API_KEY`(기존 "test 프로젝트" 키)와 `APP_PASSCODE` 입력. 그다음 재배포(환경 변수는 새 배포부터 적용). 무료 등급이면 통역 지연 사례가 있으니 결제 등급 확인
 2. 배포본에서 실제 엔진으로 한 방향 통역 1회 시연 → 설정 메시지·음성 형식이 받아들여지는지 확인. 거절되면 화면의 오류 문구(종료 코드와 사유)를 보고 `engine-gemini.js`의 `_setup()` 수정
-3. 배포 설정 — Root Directory `2026.11_BH_동시통역앱/30_개발/src`, 환경 변수 `GEMINI_API_KEY`·`APP_PASSCODE`
 4. 실기기에서 "응답 속도 표시"로 한국어·영어 각 10문장 측정 → `checks.md` 1·2·4번 갱신. 1초가 안 나오면 기준을 낮추지 않고 측정값을 보고
 5. 실기기에서 되울림(A6-실제) 확인. 되울리면 `config.js`의 `echoTailMs`를 늘리거나 눌러서 말하기를 기본으로
 6. (선택) OpenAI 키가 있으면 GPT-Realtime-Translate 접속 코드를 추가해 같은 음성으로 비교 측정
