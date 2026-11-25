@@ -23,6 +23,44 @@ function safeEqual(a, b) {
   return timingSafeEqual(ha, hb);
 }
 
+// Google에 1회용 임시 토큰을 요청한다. 성공하면 { name }, 실패하면 { error }.
+async function mintToken(env, fetchImpl) {
+  const apiBase = env.GEMINI_API_BASE || DEFAULT_API_BASE;
+  const now = Date.now();
+  let res;
+  try {
+    res = await fetchImpl(`${apiBase}/v1alpha/auth_tokens`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
+      body: JSON.stringify({
+        uses: 1,
+        expireTime: new Date(now + TOKEN_LIFETIME_MS).toISOString(),
+        newSessionExpireTime: new Date(now + START_WINDOW_MS).toISOString(),
+      }),
+    });
+  } catch {
+    return { error: 'unreachable' };
+  }
+  if (!res.ok) {
+    let reason = '';
+    try {
+      const j = await res.json();
+      const info = j && j.error && Array.isArray(j.error.details) ? j.error.details.find((d) => d && d.reason) : null;
+      reason = (info && info.reason) || (j && j.error && j.error.status) || '';
+    } catch {
+      /* 본문이 JSON이 아님 */
+    }
+    return { error: `${res.status} ${reason}`.trim() };
+  }
+  let name = '';
+  try {
+    name = (await res.json()).name || '';
+  } catch {
+    /* 아래에서 처리 */
+  }
+  return name ? { name } : { error: 'no token' };
+}
+
 export async function issueToken(body, env = process.env, fetchImpl = fetch) {
   const required = env.APP_PASSCODE || '';
   if (!required && env.VERCEL) {
@@ -35,47 +73,24 @@ export async function issueToken(body, env = process.env, fetchImpl = fetch) {
   const key = env.GEMINI_API_KEY;
   if (!key) return { status: 500, body: { code: 'config', detail: 'GEMINI_API_KEY' } };
 
-  const apiBase = env.GEMINI_API_BASE || DEFAULT_API_BASE;
   const wsBase = env.GEMINI_WS_BASE || DEFAULT_WS_BASE;
-  const now = Date.now();
-
-  let res;
-  try {
-    res = await fetchImpl(`${apiBase}/v1alpha/auth_tokens`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
-      body: JSON.stringify({
-        uses: 1,
-        expireTime: new Date(now + TOKEN_LIFETIME_MS).toISOString(),
-        newSessionExpireTime: new Date(now + START_WINDOW_MS).toISOString(),
-      }),
-    });
-  } catch {
-    return { status: 502, body: { code: 'upstream', detail: 'unreachable' } };
-  }
-
-  if (!res.ok) {
-    let reason = '';
-    try {
-      const j = await res.json();
-      const info = j && j.error && Array.isArray(j.error.details) ? j.error.details.find((d) => d && d.reason) : null;
-      reason = (info && info.reason) || (j && j.error && j.error.status) || '';
-    } catch {
-      /* 본문이 JSON이 아님 */
-    }
-    return { status: 502, body: { code: 'upstream', detail: `${res.status} ${reason}`.trim() } };
-  }
-
-  let name = '';
-  try {
-    name = (await res.json()).name || '';
-  } catch {
-    /* 아래에서 처리 */
-  }
-  if (!name) return { status: 502, body: { code: 'upstream', detail: 'no token' } };
+  const minted = await mintToken(env, fetchImpl);
+  if (minted.error) return { status: 502, body: { code: 'upstream', detail: minted.error } };
+  const name = minted.name;
 
   return {
     status: 200,
     body: { wsUrl: `${wsBase}${WS_PATH}?access_token=${encodeURIComponent(name)}` },
   };
+}
+
+// 서버 설정 상태. 값은 내보내지 않고 "있다/없다"와 엔진 응답만 알려 준다.
+// engine=true이면 실제로 임시 토큰을 한 번 발급해 보고 바로 버린다 (음성을 보내지 않는다).
+export async function checkHealth({ engine = false } = {}, env = process.env, fetchImpl = fetch) {
+  const out = { key: !!env.GEMINI_API_KEY, passcode: !!env.APP_PASSCODE };
+  if (engine && out.key) {
+    const minted = await mintToken(env, fetchImpl);
+    out.engine = minted.error ? minted.error : 'ok';
+  }
+  return out;
 }

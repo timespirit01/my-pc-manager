@@ -6,7 +6,7 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { issueToken } from './lib/issue-token.js';
+import { issueToken, checkHealth } from './lib/issue-token.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public');
 const TYPES = {
@@ -49,6 +49,11 @@ export function startServer({ port = 5173, env = process.env } = {}) {
       }
       const out = await issueToken(await readBody(req), env);
       res.writeHead(out.status).end(JSON.stringify(out.body));
+      return;
+    }
+    if (url.pathname === '/api/health') {
+      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+      res.end(JSON.stringify(await checkHealth({ engine: url.searchParams.get('engine') === '1' }, env)));
       return;
     }
     let rel = decodeURIComponent(url.pathname);

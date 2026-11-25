@@ -12,7 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from '../server.js';
 import { startMock } from './mock-google.js';
-import { issueToken } from '../lib/issue-token.js';
+import { issueToken, checkHealth } from '../lib/issue-token.js';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
@@ -307,6 +307,14 @@ async function testAccess() {
   const noPass = await issueToken({}, { VERCEL: '1', GEMINI_API_KEY: 'k' }, async () => ({ ok: true, json: async () => ({ name: 'auth_tokens/x' }) }));
   const noKey = await issueToken({}, {}, async () => ({}));
   check('D3', '암호 없는 공개 배포와 키 없는 서버는 토큰 발급을 거부한다', noPass.status === 500 && noKey.status === 500);
+
+  // 상태 확인 경로: 값은 내보내지 않고 설정 유무와 엔진 응답만 알려 준다.
+  t = await setup({ onboarded: true });
+  const health = await t.page.evaluate(() => fetch('api/health?engine=1').then((r) => r.text()));
+  const h = JSON.parse(health);
+  const bad = await checkHealth({ engine: true }, { GEMINI_API_KEY: 'x' }, async () => ({ ok: false, status: 400, json: async () => ({ error: { status: 'INVALID_ARGUMENT', details: [{ reason: 'API_KEY_INVALID' }] } }) }));
+  check('D4', '상태 확인 경로가 키 값을 내보내지 않고 설정 유무와 엔진 응답만 알려 준다', h.key === true && h.passcode === false && h.engine === 'ok' && !health.includes(SECRET) && bad.engine === '400 API_KEY_INVALID', health);
+  await t.close();
 }
 
 // ---------- 5. 눌러서 말하기 ----------
