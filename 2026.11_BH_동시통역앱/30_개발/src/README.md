@@ -50,6 +50,7 @@ public/
   js/audio-in.js, pcm-worklet.js   마이크 → 16kHz PCM
   js/audio-out.js             통역 음성 재생
 api/token.js                  POST /api/token (Vercel 함수)
+api/health.js                 GET /api/health — 키·암호 설정 유무 확인. `?engine=1`이면 Google이 키를 받아 주는지도 확인 (값은 내보내지 않음)
 lib/issue-token.js            임시 토큰 발급 (암호 확인 → Google에 1회용 토큰 요청)
 server.js                     개발용 서버
 test/mock-google.js           가짜 Google 서버 (실제와 같은 주소·메시지 형식)
@@ -68,7 +69,7 @@ test/e2e.mjs                  자동 검사
 ## 검사
 
 ```bash
-npm test             # 자동 검사 27개 (약 3분)
+npm test             # 자동 검사 28개 (약 3분)
 npm test -- soak     # 15분 연속 대화
 npm test -- shots    # 화면 캡처 → ../docs/screens/
 ```
