@@ -100,7 +100,7 @@ export async function runSelfTest(q, env = process.env, fetchImpl = fetch, WebSo
   out.setup = setup;
 
   const events = [];
-  const live = { inputText: '', outputText: '', inputLangs: [], audioSec: 0, flags: {} };
+  const live = { inputText: '', outputText: '', inputLangs: [], audioSec: 0, flags: {}, peaks: [], usageEvents: 0, usageIn: 0, usageOut: 0, lastUsageMs: null };
   let t0 = 0; // 음성 전송을 시작한 시각
   const at = () => (t0 ? Date.now() - t0 : -(Date.now() - t));
   const wsBase = env.GEMINI_WS_BASE || WS;
@@ -165,7 +165,15 @@ export async function runSelfTest(q, env = process.env, fetchImpl = fetch, WebSo
         }
         for (const p of sc.modelTurn?.parts || []) {
           if (p.inlineData?.data) {
-            const bytes = Buffer.from(p.inlineData.data, 'base64').length;
+            const raw = Buffer.from(p.inlineData.data, 'base64');
+            const bytes = raw.length;
+            // 조각별 최대 진폭: 엔진이 말 없는 구간에 보내는 음성이 완전한 무음인지 보려는 것
+            let peak = 0;
+            for (let i = 0; i + 1 < raw.length; i += 2) {
+              const v = Math.abs(raw.readInt16LE(i));
+              if (v > peak) peak = v;
+            }
+            live.peaks.push(peak);
             const rate = Number(/rate=(\d+)/.exec(p.inlineData.mimeType || '')?.[1] || 24000);
             e.audioMs = Math.round((bytes / 2 / rate) * 1000);
             live.audioSec += bytes / 2 / rate;
@@ -181,7 +189,12 @@ export async function runSelfTest(q, env = process.env, fetchImpl = fetch, WebSo
         }
       }
       if (msg.goAway) e.goAway = msg.goAway;
-      if (msg.usageMetadata) live.usage = msg.usageMetadata;
+      if (msg.usageMetadata) {
+        live.usageEvents++;
+        live.usageIn += msg.usageMetadata.promptTokenCount || 0;
+        live.usageOut += msg.usageMetadata.responseTokenCount || 0;
+        live.lastUsageMs = at();
+      }
       if (msg.sessionResumptionUpdate) e.resumable = msg.sessionResumptionUpdate.resumable;
       if (events.length < 400) events.push(e);
     };
