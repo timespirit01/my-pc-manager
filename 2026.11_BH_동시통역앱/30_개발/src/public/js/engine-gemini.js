@@ -1,5 +1,5 @@
 // Gemini Live API 통역 세션 하나(한 방향)를 맡는다.
-// 다른 엔진으로 바꾸려면 이 파일과 같은 메서드(connect, sendAudio, endAudio,
+// 다른 엔진으로 바꾸려면 이 파일과 같은 메서드(connect, sendAudio,
 // maybeRefresh, retryNow, close)와 같은 on.* 콜백을 가진 클래스를 만들면 된다.
 //
 // 프로토콜 출처: @google/genai 3.6.1 소스 (live.connect, tokens.create).
@@ -231,11 +231,6 @@ export class GeminiSession {
 
   sendAudio(b64) {
     this._send(`{"realtimeInput":{"audio":{"data":"${b64}","mimeType":"audio/pcm;rate=${this.inputRate}"}}}`);
-  }
-
-  // 말이 끝났음을 알려 모델이 침묵을 기다리지 않게 한다.
-  endAudio() {
-    this._send('{"realtimeInput":{"audioStreamEnd":true}}');
   }
 
   close() {

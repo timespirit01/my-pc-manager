@@ -3,7 +3,7 @@
 //       npm test -- shots   (화면 캡처만)
 //       npm test -- soak    (15분 연속 대화)
 //
-// 가짜 마이크 입력으로 "한국어 2.4초 → 쉼 → 영어 2.4초 → 쉼"이 반복되는 음성 파일을 쓴다.
+// 가짜 마이크 입력으로 "한국어 2.4초 → 쉼 2.6초 → 영어 2.4초 → 쉼 5초"가 반복되는 음성 파일을 쓴다.
 // 통역 품질과 실제 엔진의 응답 속도는 여기서 확인할 수 없다 (docs/checks.md 참고).
 
 import { createRequire } from 'node:module';
@@ -33,7 +33,7 @@ function makeWav(file) {
     [250, 2.4], // 한국어 역
     [0, 2.6],
     [1100, 2.4], // 영어 역
-    [0, 3.0],
+    [0, 5.0],
   ];
   const total = Math.round(plan.reduce((s, p) => s + p[1], 0) * rate);
   const pcm = new Int16Array(total);
@@ -159,11 +159,25 @@ async function testAuto() {
   // 되울림 차단: 한쪽 통역 음성이 나가는 동안 반대 방향 세션은 마이크 음성을 받지 않는다.
   const out = mock.sessions.find((s) => s.target === 'en');
   const inn = mock.sessions.find((s) => s.target === 'ko');
-  const leaked = (speaker, listener) =>
-    speaker.outputs.reduce((n, o) => n + listener.frames.filter((f) => f > o.start + 250 && f < o.end - 50).length, 0);
-  const leak = leaked(out, inn) + leaked(inn, out);
-  const framesDuring = out.outputs.reduce((n, o) => n + out.frames.filter((f) => f > o.start + 250 && f < o.end - 50).length, 0);
-  check('A6', '통역 음성 재생 중 반대 방향 세션으로 음성이 가지 않는다', leak === 0 && framesDuring > 10, `새어 나간 조각 ${leak}개, 말하는 쪽 세션은 ${framesDuring}개 수신`);
+  // 통역 음성 조각 하나(250ms)가 재생되는 동안을 조각마다 따로 본다.
+  const during = (speaker, listener) =>
+    speaker.voiced.reduce((n, t0) => n + listener.frames.filter((f) => f > t0 + 100 && f < t0 + 230).length, 0);
+  const leak = during(out, inn) + during(inn, out);
+  const framesDuring = during(out, out);
+  check('A6', '통역 음성 재생 중 반대 방향 세션으로 음성이 가지 않는다', leak === 0 && framesDuring > 10, `새어 나간 조각 ${leak}개, 말하는 쪽 세션은 ${framesDuring}개 수신 (통역 음성 조각 ${out.voiced.length + inn.voiced.length}개)`);
+
+  // 엔진은 무음 조각을 끊임없이 보낸다. 그것 때문에 마이크 음성이 두 세션에 번갈아 끊겨 가면 안 된다.
+  const span = out.frames.filter((f) => f > out.outputs[0].start - 500 && f < out.outputs[0].start + 1500);
+  const maxGap = Math.max(...span.slice(1).map((f, i) => f - span[i]));
+  check('A14', '엔진이 무음 조각을 계속 보내도 말하는 쪽 세션은 끊김 없이 음성을 받는다', span.length > 30 && maxGap < 150 && out.silentSent > 10 && inn.silentSent > 10, `최대 간격 ${maxGap}ms, 엔진이 보낸 무음 조각 ${out.silentSent}+${inn.silentSent}개`);
+
+  // 무음 조각이 재생 대기열에 쌓여 통역 음성이 점점 늦어지면 안 되고, 말이 없을 때는 '듣는 중'으로 돌아와야 한다.
+  await page.waitForFunction(() => document.querySelector('#status-me').dataset.state === 'listening', null, { timeout: 8000 }).catch(() => {});
+  const idle = await page.evaluate(() => {
+    const i = window.__majoo.interp;
+    return { lag: i.player.nextTime - i.ctx.currentTime, state: document.querySelector('#status-me').dataset.state };
+  });
+  check('A15', '무음 조각이 재생 대기열에 쌓이지 않고, 말이 없으면 "듣는 중"으로 돌아온다', idle.lag < 0.3 && idle.state === 'listening', `대기열 ${idle.lag.toFixed(2)}초, 상태 ${idle.state}`);
 
   const setupMsg = out.setup;
   check(
@@ -196,11 +210,16 @@ async function testAuto() {
   check('A11', '응답 속도 측정 기능이 값을 기록한다', lags.length > 0, `${lags.length}건`);
 
   // 멈춤
+  const silentBefore = out.silentFrames;
+  const tPause = Date.now();
   await page.click('#btn-mic');
   await page.waitForSelector('#app[data-listening="false"]');
-  const before = out.frames.length;
-  await sleep(600);
-  check('A12', '가운데 버튼으로 멈추면 음성 전송이 멈춘다', out.frames.length === before && out.streamEnds >= 1);
+  await sleep(5300);
+  const tailFrames = out.frames.filter((f) => f > tPause).length;
+  const tailSilent = out.silentFrames - silentBefore;
+  const settled = out.frames.length;
+  await sleep(800);
+  check('A12', '멈추면 남은 통역을 위해 무음을 4초쯤 이어 보낸 뒤 전송을 끝낸다', out.frames.length === settled && tailSilent >= 12 && tailSilent <= 20 && tailFrames <= 22, `멈춘 뒤 조각 ${tailFrames}개(무음 ${tailSilent}개)`);
   check('A13', '브라우저 오류 없음', t.errors.length === 0, t.errors.join(' | '));
   await t.close();
 }
@@ -226,19 +245,19 @@ async function testNoLangCodes() {
 
 async function testReconnect() {
   // (a) 엔진이 연결 시간 한도를 알림(goAway) → 사용자 모르게 갈아탄다
-  let t = await setup({ mockOpts: { goAwayAfterMs: 5000 } });
+  let t = await setup({ mockOpts: { goAwayAfterMs: 3000 } });
   await t.page.click('#onboard-start');
   await waitText(t.page, '#pane-partner .msg--in', 'Hello');
   let sawReconnecting = false;
   const start = Date.now();
-  while (Date.now() - start < 16000) {
+  while (Date.now() - start < 22000) {
     const conn = await t.page.getAttribute('#app', 'data-conn');
     if (conn === 'reconnecting' || conn === 'blocked') sawReconnecting = true;
     await sleep(100);
   }
   const resumed = t.mock.sessions.filter((s) => s.resumedFrom);
   const partnerMsgs = (await text(t.page, '#pane-partner .msg--in')).length;
-  const dropped = t.mock.sessions.filter((s) => s.closedAt && s.outputs.some((o) => o.end > s.closedAt));
+  const dropped = t.mock.sessions.filter((s) => s.closedAt && s.outputs.some((o) => o.end > s.closedAt + 100));
   check('C5a', '연결 시간 한도 알림을 받으면 끊김 표시 없이 새 연결로 갈아탄다', resumed.length >= 2 && !sawReconnecting && partnerMsgs >= 2, `세션 ${t.mock.sessions.length}개, 재개 ${resumed.length}개, 통역 ${partnerMsgs}건`);
   check('C5b', '통역이 나오는 도중에는 연결을 갈아타지 않는다', dropped.length === 0);
   await t.close();
@@ -273,7 +292,7 @@ async function testReconnect() {
   await t.page.waitForSelector('#banner', { state: 'hidden', timeout: 3000 }).catch(() => {});
   const bannerGone = await t.page.isHidden('#banner');
   const count0 = (await text(t.page, '#pane-partner .msg--in')).length;
-  await sleep(12000);
+  await sleep(14500);
   const count1 = (await text(t.page, '#pane-partner .msg--in')).length;
   check('C6b', '인터넷이 끊기면 안내가 뜨고, 돌아오면 5초 안에 이어진다', bannerText.includes('인터넷') && back < 5000 && bannerGone && count1 > count0, `복구 ${back}ms, 안내 "${bannerText}", 통역 ${count0}→${count1}건`);
   await t.close();
@@ -334,10 +353,14 @@ async function testButtonMode() {
   const out = mock.sessions.find((s) => s.target === 'en');
   const inn = mock.sessions.find((s) => s.target === 'ko');
   check('E2', '내 버튼을 누르면 나→상대 세션에만 음성이 간다', out.frames.length > 20 && inn.frames.length === 0 && micHidden, `나→상대 ${out.frames.length}조각, 상대→나 ${inn.frames.length}조각`);
+  // 말하는 도중에 버튼을 뗀다. 엔진은 음성이 들어오는 동안에만 통역을 진행하므로 무음을 이어 보내야 뒷부분이 나온다.
+  const atRelease = (await text(page, '#pane-partner .msg--in')).join(' ');
+  const silentAtRelease = out.silentFrames;
   await page.click('#talk-me');
   await page.waitForSelector('#talk-me[aria-pressed="false"]');
-  await sleep(300);
-  check('E3', '버튼을 떼면 말 끝 신호를 보낸다', out.streamEnds >= 1);
+  await sleep(3000);
+  const afterRelease = (await text(page, '#pane-partner .msg--in')).join(' ');
+  check('E3', '버튼을 뗀 뒤에도 무음을 이어 보내 남은 통역이 나온다', afterRelease.length > atRelease.length && out.silentFrames - silentAtRelease >= 8 && inn.frames.length === 0, `"${atRelease}" → "${afterRelease}", 무음 조각 ${out.silentFrames - silentAtRelease}개`);
   const label = await page.textContent('#talk-partner .talk__label');
   check('E4', '상대 쪽 버튼 문구가 상대 언어로 나온다', label === 'Tap to speak', label);
   await t.close();
@@ -379,7 +402,7 @@ async function testSoak() {
     if (Date.now() >= nextMark) {
       nextMark += 60000;
       const done = mock.sessions.reduce((n, s) => n + s.outputs.length, 0);
-      if (done - last < 6) stalledMinutes++; // 1분에 한국어·영어 각 5회 남짓 통역된다
+      if (done - last < 5) stalledMinutes++; // 1분에 한국어·영어 각 4~5회 통역된다
       console.log(`      ${Math.round((Date.now() - start) / 60000)}분: 통역 누적 ${done}건, 세션 ${mock.sessions.length}개`);
       last = done;
     }

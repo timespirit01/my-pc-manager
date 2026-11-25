@@ -12,6 +12,15 @@ function toBase64(buffer) {
   return btoa(s);
 }
 
+function peakOf(pcm) {
+  let peak = 0;
+  for (let i = 0; i < pcm.length; i++) {
+    const v = pcm[i] < 0 ? -pcm[i] : pcm[i];
+    if (v > peak) peak = v;
+  }
+  return peak;
+}
+
 const sameLang = (a, b) => !!a && !!b && a.toLowerCase().split('-')[0] === b.toLowerCase().split('-')[0];
 const keyOfSide = (side) => (side === 'me' ? 'out' : 'in');
 
@@ -72,6 +81,9 @@ export class Interpreter {
     this.lastActivity = 0;
     this.pausedAt = 0;
     this.lastStatus = '';
+    this.flushUntil = { out: 0, in: 0 };
+    // 주기 점검(250ms)마다 보낼 무음 한 조각
+    this.silence = toBase64(new Int16Array(Math.round(this.cfg.audio.inputRate / 4)).buffer);
     this.timer = setInterval(() => this._tick(), 250);
   }
 
@@ -164,6 +176,7 @@ export class Interpreter {
     this.ensureAudio();
     this.prepare();
     await this.mic.start(); // 실패하면 code가 달린 오류를 던진다
+    this.flushUntil = { out: 0, in: 0 };
     this.listening = true;
     this.lastActivity = performance.now();
     this._emitStatus();
@@ -173,8 +186,16 @@ export class Interpreter {
     if (!this.listening) return;
     this.listening = false;
     this.activeSide = null;
+    const wasMode = this.mode;
+    const wasSide = this.activeSide;
     this.mic.stop();
-    for (const key of ['out', 'in']) this.sessions[key]?.endAudio();
+    // 방금까지 음성을 받던 세션이 남은 통역을 끝낼 수 있게 무음을 이어 보낸다.
+    if (wasMode === 'button') {
+      if (wasSide) this._flush(keyOfSide(wasSide));
+    } else {
+      this._flush('out');
+      this._flush('in');
+    }
     this.pausedAt = performance.now();
     this._emitStatus();
   }
@@ -190,12 +211,18 @@ export class Interpreter {
   setActiveSide(side) {
     const prev = this.activeSide;
     if (prev === side) return;
-    if (prev) this.sessions[keyOfSide(prev)]?.endAudio();
+    if (prev) this._flush(keyOfSide(prev));
+    if (side) this.flushUntil[keyOfSide(side)] = 0; // 다시 말하기 시작하면 실제 마이크 음성이 이어진다
     this.activeSide = side;
     this.sideSince = performance.now();
     this.sideSpoke = false;
     this.lastActivity = this.sideSince;
     this._emitStatus();
+  }
+
+  // 말이 끝난 세션에 한동안 무음을 보낸다. 엔진은 음성이 들어오는 동안에만 통역을 진행한다.
+  _flush(key) {
+    this.flushUntil[key] = performance.now() + this.cfg.session.flushTailMs;
   }
 
   _onMic(pcm, rms) {
@@ -208,12 +235,14 @@ export class Interpreter {
       this.sideSpoke = true;
     }
     const b64 = toBase64(pcm);
-    if (this.mode === 'button') {
-      if (this.activeSide) this.sessions[keyOfSide(this.activeSide)]?.sendAudio(b64);
-      return;
-    }
     // 되울림 차단: 한쪽 통역 음성이 스피커로 나가는 동안에는 반대 방향 세션에 보내지 않는다.
     const playing = this.player.playingTag(this.cfg.session.echoTailMs / 1000);
+    if (this.mode === 'button') {
+      if (!this.activeSide) return;
+      const key = keyOfSide(this.activeSide);
+      if (!playing || playing === key) this.sessions[key]?.sendAudio(b64);
+      return;
+    }
     if (playing !== 'in') this.sessions.out?.sendAudio(b64);
     if (playing !== 'out') this.sessions.in?.sendAudio(b64);
   }
@@ -268,6 +297,8 @@ export class Interpreter {
   }
 
   _onAudio(key, pcm, rate) {
+    // 엔진은 통역할 말이 없을 때도 무음 조각을 계속 보낸다. 무음은 재생도, 활동으로도 치지 않는다.
+    if (peakOf(pcm) < this.cfg.audio.silencePeak) return;
     const t = this._turn(key);
     const first = !t.hasAudio;
     t.committed = true;
@@ -321,6 +352,13 @@ export class Interpreter {
     return !!((t.out && t.out.committed) || (t.in && t.in.committed) || (this.player && this.player.playingTag(0)));
   }
 
+  // 지금 통역이 실제로 나오고 있는가 (화면의 "통역 중" 표시와 연결 갈아타기 판단에 쓴다).
+  _interpreting() {
+    const now = performance.now();
+    const recent = (t) => !!(t && t.committed && now - t.lastAt < 1200);
+    return recent(this.turns.out) || recent(this.turns.in) || !!(this.player && this.player.playingTag(0));
+  }
+
   _tick() {
     const now = performance.now();
     const s = this.cfg.session;
@@ -329,6 +367,11 @@ export class Interpreter {
     for (const key of ['out', 'in']) {
       const t = this.turns[key];
       if (t && now - t.lastAt > s.turnGapMs) this._finishTurn(key);
+    }
+
+    // 말이 끝난 세션에 무음을 이어 보낸다 (남은 통역을 끝내게).
+    for (const key of ['out', 'in']) {
+      if (this.flushUntil[key] > now) this.sessions[key]?.sendAudio(this.silence);
     }
 
     // 응답 속도: 말 끝 → 통역 음성이 들리기 시작한 시각. 음수면 말하는 도중에 시작한 것.
@@ -355,12 +398,14 @@ export class Interpreter {
         this.pause();
         this.on.autoPaused?.();
       }
-    } else if (this.sessions.out && now - this.pausedAt > s.releaseMs && !this._busy()) {
+    } else if (this.sessions.out && now - this.pausedAt > s.releaseMs && !this._busy() && this.flushUntil.out < now && this.flushUntil.in < now) {
       this.release();
     }
 
-    const idle = !this.meter.speaking && !this._busy();
-    for (const key of ['out', 'in']) this.sessions[key]?.maybeRefresh(idle && !this.turns[key]);
+    // 연결을 갈아타도 되는 틈: 통역이 나오고 있지 않고, 마지막으로 말소리가 난 지 3.5초가 지났을 때.
+    // 엔진은 말이 시작되고 3초쯤 뒤에야 첫 통역을 내므로(실측), 말이 끝난 직후에는 아직 통역이 오는 중일 수 있다.
+    const quiet = !this.meter.speaking && now - this.meter.lastVoice > 3500 && !this._interpreting();
+    for (const key of ['out', 'in']) this.sessions[key]?.maybeRefresh(quiet && this.flushUntil[key] < now);
 
     this._emitStatus();
   }
@@ -382,7 +427,7 @@ export class Interpreter {
       listening: this.listening,
       mode: this.mode,
       activeSide: this.activeSide,
-      busy: this._busy(),
+      busy: this._interpreting(),
       playing: this.player ? this.player.playingTag(0) : null,
     };
     const sig = JSON.stringify(status);

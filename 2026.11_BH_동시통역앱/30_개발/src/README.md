@@ -50,6 +50,7 @@ public/
   js/audio-in.js, pcm-worklet.js   마이크 → 16kHz PCM
   js/audio-out.js             통역 음성 재생
 api/token.js                  POST /api/token (Vercel 함수)
+api/selftest.js               GET /api/selftest — 진단용. 서버에서 합성 음성을 실제 엔진에 흘려 보내고 응답을 기록한다. `SELFTEST_TOKEN` 환경 변수가 있을 때만 동작하고 호출마다 요금이 든다
 api/health.js                 GET /api/health — 키·암호 설정 유무 확인. `?engine=1`이면 Google이 키를 받아 주는지도 확인 (값은 내보내지 않음)
 lib/issue-token.js            임시 토큰 발급 (암호 확인 → Google에 1회용 토큰 요청)
 server.js                     개발용 서버
@@ -69,7 +70,7 @@ test/e2e.mjs                  자동 검사
 ## 검사
 
 ```bash
-npm test             # 자동 검사 28개 (약 3분)
+npm test             # 자동 검사 30개 (약 4분)
 npm test -- soak     # 15분 연속 대화
 npm test -- shots    # 화면 캡처 → ../docs/screens/
 ```
@@ -86,4 +87,4 @@ Chromium에 가짜 마이크 음성을 넣고 가짜 Google 서버로 통역을 
 
 ## 엔진 바꾸기
 
-`js/engine-gemini.js`와 같은 메서드(`connect`, `sendAudio`, `endAudio`, `maybeRefresh`, `retryNow`, `close`)와 같은 `on.*` 콜백을 가진 클래스를 만들고 `interpreter.js`의 `_makeSession`에서 그 클래스를 쓰면 된다. 토큰 발급도 엔진마다 다르므로 `lib/issue-token.js`에 해당 엔진용 발급을 추가한다.
+`js/engine-gemini.js`와 같은 메서드(`connect`, `sendAudio`, `maybeRefresh`, `retryNow`, `close`)와 같은 `on.*` 콜백을 가진 클래스를 만들고 `interpreter.js`의 `_makeSession`에서 그 클래스를 쓰면 된다. 토큰 발급도 엔진마다 다르므로 `lib/issue-token.js`에 해당 엔진용 발급을 추가한다.
