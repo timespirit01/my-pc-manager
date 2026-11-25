@@ -24,7 +24,7 @@ function safeEqual(a, b) {
 }
 
 // Google에 1회용 임시 토큰을 요청한다. 성공하면 { name }, 실패하면 { error }.
-async function mintToken(env, fetchImpl) {
+export async function mintToken(env, fetchImpl = fetch) {
   const apiBase = env.GEMINI_API_BASE || DEFAULT_API_BASE;
   const now = Date.now();
   let res;

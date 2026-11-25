@@ -59,6 +59,18 @@ export async function startMock({ port, expectedKey = null, langCodes = true, go
       });
       return;
     }
+    if (req.method === 'POST' && /:generateContent$/.test(req.url)) {
+      // 음성 합성 흉내: 한국어 역의 낮은 음 1.5초
+      const n = 36000;
+      const pcm = new Int16Array(n);
+      for (let i = 0; i < n; i++) pcm[i] = Math.round(Math.sin((2 * Math.PI * 250 * i) / 24000) * 12000);
+      req.resume();
+      res.setHeader('content-type', 'application/json');
+      res.writeHead(200).end(
+        JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'audio/L16;codec=pcm;rate=24000', data: Buffer.from(pcm.buffer).toString('base64') } }] } }] }),
+      );
+      return;
+    }
     res.writeHead(404).end();
   });
 
